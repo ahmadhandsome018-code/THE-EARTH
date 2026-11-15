@@ -1,681 +1,359 @@
-THE EARTH — Master Project Specification
+THE EARTH
 
-Project: THE EARTH
-Version: 0.1.0
-Status: Initial Development
-Document Type: Master Project Specification
+Official Project Specification
+
+Project Version: 0.1.0
+Documentation Status: Active Development
+Project Type: Persistent Multiplayer Open Virtual World
+Primary Platforms: Desktop Browsers and Mobile Browsers
+Initial Languages: Arabic and English
 
 ---
 
 1. Project Vision
 
-THE EARTH is a persistent multiplayer 3D open-world simulation game.
+THE EARTH is a persistent multiplayer virtual world designed to simulate an interconnected environment where players can live, explore, build, own land, establish businesses, trade, participate in city management, interact socially, and contribute to a player-driven economy.
 
-The world combines:
+The world is intended to operate continuously, with persistent player accounts, ownership records, businesses, cities, resources, and economic activity.
 
-- Realistic environments and cities.
+The project must be developed incrementally, with each major system tested before progressing to dependent systems.
+
+Core Principles
+
+- Persistent multiplayer world.
 - Player-owned land and properties.
-- A player-driven economy.
-- Businesses, industries, agriculture and trade.
-- City governance and elections.
-- Wildlife and environmental simulation.
-- Health, food, weather and social systems.
-- Player-created businesses, games and experiences.
+- Player-created businesses and projects.
+- City governance and public infrastructure.
+- Player-driven production and trade.
+- Social interaction and proximity voice chat.
+- Scalable graphics and performance.
+- Server-authoritative ownership and economy.
+- Fair anti-fraud and anti-manipulation systems.
+- Support for desktop and mobile devices.
 
-The game must support desktop and mobile devices.
+---
 
-The world must remain persistent, with player accounts, ownership, economic transactions and city records saved on the server.
+2. World Structure and Scale
 
-2. World Structure
+2.1 Land Grid
 
-2.1 Land and World Size
+The initial planned land system contains:
 
-- The world contains 5,000,000 land squares designated for player ownership and development.
-- Each square measures 5 × 5 meters.
-- Each square covers 25 square meters.
-- Total designated player land: 125 square kilometers.
-- This is NOT the total size of the world.
+- 5,000,000 purchasable land grid squares.
+- Each square measures 5 meters × 5 meters.
+- Each square represents 25 square meters.
+- Total planned purchasable land area: 125 square kilometers.
 
-The complete world also includes:
+This figure describes the planned purchasable grid area, not the total geographical size of the entire world.
 
-- Cities.
-- Government facilities.
-- Roads and transportation networks.
-- Airports and ports.
-- Lakes, rivers and coastlines.
-- Mountains, forests and deserts.
-- Natural and protected environments.
+The total world area, wilderness distribution, oceans, mountains, and non-purchasable areas remain to be determined.
 
-The total world area remains to be determined.
+2.2 Cities
 
-2.2 World Streaming
+- The initial world is planned to contain 12 cities.
+- Cities contain residential, commercial, industrial, agricultural, and public areas.
+- City managers control development and city administration within their authority.
+- Each city has public infrastructure and government facilities.
+- Cities can participate in trade, transportation, alliances, and other inter-city activities.
 
-The entire world must never need to load at once.
+2.3 First City Manager
 
-Use:
+The first player who successfully selects and enters an unclaimed city becomes its first historical city manager.
 
-- Chunk streaming.
+This assignment must be performed through an atomic server-side operation.
+
+The system must prevent two players from simultaneously becoming the first manager of the same city.
+
+2.4 Founders Program
+
+The first 1,000 players globally receive a Founders Badge.
+
+The system must maintain an accurate server-side registration order.
+
+---
+
+3. World Streaming and Technical Architecture
+
+The world must not be loaded entirely at once.
+
+Required Systems
+
+- World coordinates.
+- Grid-based land identification.
+- Region and sector organization.
+- Chunk-based loading and unloading.
 - Level of Detail (LOD).
-- Frustum culling.
-- Occlusion culling.
-- Instanced rendering.
-- Network interest management.
-- Memory-aware asset loading.
+- Distance-based object rendering.
+- Memory management.
+- Asset streaming.
+- Server-authoritative world state.
+- Persistent database records.
 
-2.3 Regions and Sectors
+Chunk loading must allow players to explore large areas without requiring all world assets to remain in memory.
 
-Previous planning figures included 125 regions, 12,500 sectors and 400 land squares per sector.
+The architecture must support future expansion without requiring a complete redesign of the world system.
 
-These are historical planning figures, not a finalized division of the complete world. Their distribution must be redesigned after determining the total world area.
+---
 
-3. Cities and Initial World
+4. Terrain and Environment
 
-- The world begins with 12 cities.
-- Cities have different economic and environmental specializations.
-- Cities must contain basic infrastructure before players enter.
-- Cities must not be completely empty or fully developed.
+The world is planned to include:
 
-Initial public facilities include:
+- Mountains.
+- Hills.
+- Plains.
+- Rivers.
+- Lakes.
+- Oceans.
+- Coastlines.
+- Forests.
+- Agricultural land.
+- Natural resources.
+- Wildlife habitats.
+- Different environmental regions.
 
-- Hospital.
-- School.
-- Football field.
-- Airport.
-- Public square.
-- News and advertising boards.
-- Roads and essential infrastructure.
+Terrain and environmental systems must support future resource production, construction, transportation, and ecological interactions.
 
-The previously planned starter general store is cancelled.
+---
 
-3.1 First City Managers
+5. Graphics and Rendering
 
-- The first player who successfully selects and enters a city becomes its first manager in that city's history.
-- This assignment must be atomic and server-authoritative.
-- Simultaneous entry attempts must never create multiple first managers.
-- The first manager's identity and appointment time must be preserved in historical records.
+THE EARTH must support four graphics quality levels:
 
-This rule is independent of the Founders Badge.
+1. Low
+2. Medium
+3. High
+4. Ultra
 
-3.2 Founders Badge
+5.1 Ultra Graphics
 
-- The first 1,000 players globally receive the Founders Badge.
-- Ranking is based on global registration order.
-- This is separate from city management appointments.
+Ultra is an advanced graphics option intended for compatible devices.
 
-4. Graphics and Rendering
+It targets highly realistic, photorealistic visual quality.
 
-4.1 Graphics Quality
+The intended visual features include:
 
-The game has four graphics settings:
-
-1. Low.
-2. Medium.
-3. High.
-4. Ultra.
-
-Ultra is a special option that requires compatible hardware, graphics processing support and a successful performance check.
-
-4.2 Ultra Graphics
-
-Ultra targets extremely realistic photorealistic graphics.
-
-Expected features:
-
+- High-quality physically based rendering (PBR).
+- Detailed materials and textures.
 - Advanced lighting.
-- Realistic reflections.
-- Detailed shadows.
-- PBR materials.
-- High-quality textures.
-- Detailed vegetation.
-- Realistic water.
-- Atmospheric effects.
-- High-quality buildings and interiors.
-- Detailed characters and vehicles.
-- Realistic environmental rendering.
+- Realistic shadows.
+- Reflections.
+- Detailed water.
+- Dense vegetation.
+- Detailed buildings.
+- Detailed vehicles.
+- Realistic environmental effects.
+- High-quality character models.
 
-Ultra must not be enabled on unsupported hardware.
+Ultra must only be enabled when the hardware, GPU, browser, and rendering capabilities are suitable.
 
-4.3 Local Hardware Processing
+The system must evaluate device performance before enabling demanding features.
 
-Graphics should be processed locally using the player's hardware.
+5.2 Rendering Technologies
 
-Technologies:
+- WebGPU when supported and suitable.
+- WebGL 2 as a compatibility rendering path.
+- GPU-based local rendering.
+- Adaptive graphics quality.
+- Chunk streaming.
+- LOD.
+- Memory optimization.
 
-- WebGL 2.
-- WebGPU when supported.
-- Three.js.
-- React Three Fiber.
-- Drei.
+Visual quality depends on both rendering technology and the quality of the actual 3D assets.
 
-The game should select a compatible rendering path and preserve fallback support.
+Ultra quality is an aspirational target, not a guarantee that every device can run it.
 
-GPU processing does not remove the need for optimization, streaming and memory management.
+5.3 Performance
 
-Photorealistic quality also depends on professional 3D models, textures, animation, lighting and environmental assets.
+The game must adapt to:
 
-5. Camera and Controls
+- GPU capabilities.
+- Available memory.
+- Device performance.
+- Screen resolution.
+- Browser capabilities.
+- Current scene complexity.
 
-Supported camera modes:
+Lower graphics settings must remain playable on less powerful devices.
 
-- First-person.
-- Third-person.
-- Fixed camera.
-- Orbit camera.
-- Cinematic camera.
-- Security camera.
-- Free camera.
+---
 
-Camera editor options:
+6. Platforms, Controls, and Languages
 
-- Position.
-- Rotation.
-- Field of view.
-- Tracking.
-- Limits.
-- Transitions.
-- Effects.
-- Triggers.
+6.1 Platforms
 
-First-person is the primary walking camera.
+- Desktop browsers.
+- Android browsers.
+- iPhone browsers.
+- Responsive user interfaces.
 
-Third-person is used behind vehicles while driving.
+6.2 Controls
 
-City managers may use camera customization for approved public projects.
+Desktop controls must support:
 
-6. Device Support
+- WASD movement.
+- Mouse camera control.
+- Space for jumping where applicable.
+- E for interaction where applicable.
+- Esc for menus and interface control.
 
-Supported:
+Mobile controls must provide touch-based movement, camera control, and interaction.
 
-- Desktop computers.
-- Android devices.
-- iPhones.
+6.3 Camera System
 
-Desktop controls:
+The player must be able to use the supported camera modes.
 
-- WASD.
-- Mouse.
-- Space.
-- E.
-- Esc.
+Camera customization must also be available within the in-game project editor.
 
-Mobile controls:
+6.4 Languages
 
-- Virtual joystick.
-- Touch camera movement.
-- Jump button.
-- Interaction button.
-- Menus.
-
-The interface must support:
-
-- Portrait mode.
-- Landscape mode.
-- Safe areas.
-- Different screen sizes.
-- Rotation without losing progress.
-
-A 2D low-resource mode must use the same account, world, economy and player state. It must not be a separate world.
-
-7. Languages
-
-Initial launch languages:
+Initial interface languages:
 
 - Arabic.
 - English.
 
-The architecture must allow future additions:
+The system must support RTL and LTR layouts and allow additional languages in the future.
 
-- French.
-- Spanish.
-- German.
-- Russian.
-- Japanese.
-- Korean.
-- Chinese.
+---
 
-Requirements:
+7. Player Accounts and Persistence
 
-- RTL support.
-- LTR support.
-- Per-account language preference.
-- Language switching without losing progress.
-- Localized interface text.
-- Localized notifications and descriptions.
-- Player names may retain their original scripts.
+Players must have persistent accounts.
 
-Future multilingual chat translation may be added.
+The server must maintain:
 
-8. Land and Real Estate
+- Account identity.
+- Player profile.
+- Character information.
+- Owned land.
+- Owned buildings.
+- Businesses.
+- Inventory.
+- PAL balance.
+- Contracts.
+- Employment information.
+- City membership.
+- Player status.
+- Account security records.
 
-Land categories:
+Important transactions and ownership changes must be recorded permanently.
+
+The client must never be trusted as the final authority for balances, ownership, or valuable transactions.
+
+---
+
+8. Player Life and Social Interaction
+
+Players are intended to have a persistent virtual life.
+
+The planned life systems include:
+
+- Health.
+- Mood.
+- Food.
+- Sleep.
+- Physical condition.
+- Social interaction.
+- Environmental effects.
+- Weather-related effects.
+
+The exact numerical formulas and balancing rules will be defined during implementation.
+
+---
+
+9. Proximity Voice Chat
+
+9.1 Core Concept
+
+THE EARTH must include proximity-based voice communication.
+
+Players can communicate through voice with other players located near them in the virtual world.
+
+Voice communication is spatially connected to player positions.
+
+9.2 Voice Behavior
+
+- Nearby players can hear one another.
+- Voice volume decreases gradually with distance.
+- Players outside the configured voice range cannot be heard.
+- 3D Spatial Audio must communicate the approximate direction of the speaker.
+- Voice communication must not automatically connect players across distant cities.
+- Voice range must be configurable by the game system.
+
+9.3 Controls
+
+- Push-to-Talk.
+- Optional open microphone mode.
+- Microphone mute.
+- Individual player volume controls.
+- Mute individual players.
+- Block individual players.
+- Report inappropriate voice behavior.
+
+9.4 Device Support
+
+- Desktop microphone support.
+- Mobile microphone support.
+- Browser microphone permission requests.
+- User-controlled audio settings.
+
+9.5 Technical Requirements
+
+- Low-latency communication.
+- Scalable voice infrastructure.
+- Spatial audio processing.
+- Distance-based attenuation.
+- Server-side validation of player proximity.
+- Protection against forged client positions.
+- Bandwidth and battery optimization.
+
+The client must not independently decide which players are authorized to hear one another.
+
+Voice communication must be validated against server-authoritative player positions and configured range rules.
+
+This feature is planned for the multiplayer and real-time communication implementation stages.
+
+---
+
+10. Land Ownership and Real Estate
+
+10.1 Land Categories
+
+Land may be designated as:
 
 - Residential.
 - Commercial.
 - Industrial.
 - Agricultural.
 
-Ownership and development depend on zoning, infrastructure, permits and city regulations.
+Land conversion is subject to zoning, infrastructure, permits, and city regulations.
 
-Players can:
+10.2 Ownership
 
-- Purchase land.
-- Build properties.
-- Upgrade properties.
-- Sell properties.
-- Develop businesses.
-- Resell existing buildings.
+Players may purchase available land and use it to:
 
-Selling an existing property transfers the building and its equipment as they are. It does not automatically demolish the property.
+- Build.
+- Upgrade.
+- Develop.
+- Sell.
+- Resell.
+- Establish businesses.
 
-Property history and ownership changes must be preserved.
+Land area determines the available construction space.
 
-8.1 Minimum Property Price
+For example, a stadium requires substantially more grid squares than a small shop.
 
-Land and real estate cannot be listed for less than the equivalent of 10 USD according to the game's PAL reference value.
+10.3 Building Prices
 
-There is no universal 10 USD minimum for products.
+Buildings may use predefined unit prices or custom pricing.
 
-Product minimum values must reflect their reference market value and include anti-manipulation protections.
+The system must account for land size, building configuration, and permitted usage.
 
-9. Building and Creation Systems
+10.4 Government Land
 
-Players must have access to modular building and project editors.
+Government facilities and public infrastructure occupy government-designated land.
 
-They can create:
-
-- Buildings.
-- Rooms.
-- Interiors.
-- Commercial facilities.
-- Industrial facilities.
-- Entertainment venues.
-- Sports facilities.
-- Custom products.
-- Brands.
-- Games and experiences.
-
-Examples:
-
-- A player-created phone brand.
-- A player-owned factory manufacturing products.
-- Cinemas.
-- Theaters.
-- Amusement parks.
-- Water parks.
-- Racing venues.
-- Exhibitions.
-- Shops.
-
-Players may manufacture their own products or contract factories to manufacture them.
-
-Projects may offer:
-
-- Free access.
-- Paid entry.
-- Subscriptions.
-- Events.
-
-Player-created games must have their own mechanics, maps, models, characters, graphics and sounds.
-
-Creator scripts must run in a secure sandbox. Unlimited server-side code execution is not allowed.
-
-10. Creator Program
-
-Entry requirements:
-
-- Purchase of credits worth at least 3,000 USD.
-- Identity verification.
-- Compliance with program rules.
-
-Eligible creators can:
-
-- Create games.
-- Create experiences.
-- Create projects.
-- Earn eligible cash payouts under program conditions.
-
-Creators cannot sell their accounts as a substitute for withdrawing earnings.
-
-The exact nature of the purchased 3,000 USD credits remains to be clarified before implementation.
-
-Purchased credits, PAL and cash earnings must have separate accounting records.
-
-11. Economy and PAL
-
-PAL is the internal virtual currency.
-
-PAL:
-
-- Is used inside the world.
-- Is not USD.
-- Is not a cryptocurrency.
-- Cannot be withdrawn as cash.
-- Cannot be converted into USD or stablecoins.
-
-All balances and transactions must be server-authoritative.
-
-Every balance change must be recorded in an auditable ledger.
-
-11.1 PAL Transaction Tax
-
-A 3% city tax applies to eligible PAL transactions, including:
-
-- Land and property sales.
-- Product and goods sales.
-- Paid services.
-- Paid experiences.
-- Paid games and activities inside the world.
-
-The tax is allocated to the relevant city treasury.
-
-The old general 10% tax on PAL commercial activity and advertising is cancelled.
-
-The 10% account marketplace commission is a separate USD transaction and must not be confused with PAL taxation.
-
-11.2 PAL Accounting
-
-Maintain separate records for:
-
-- Player PAL balances.
-- City treasury balances.
-- PAL transaction taxes.
-- Real USD payments.
-- Creator cash earnings.
-- Purchased credits.
-
-Do not mix real-money balances with PAL.
-
-11.3 Economy Monitoring
-
-Monitor:
-
-- Total circulating PAL.
-- PAL issuance.
-- PAL expenditure.
-- Sources of PAL.
-- Economic sinks.
-- Market prices.
-- Production.
-- Inventory.
-- Demand.
-- Purchasing power.
-
-Taxes transferred to city treasuries remain within the PAL economy unless a separate authorized spending or removal mechanism is implemented.
-
-12. Offerwalls and Clipping
-
-The game owner receives real revenue from advertising and offerwall partners.
-
-Players receive PAL, not USD, for eligible activities.
-
-The player can choose between:
-
-- Offerwalls.
-- Clipping campaigns.
-
-The initial plan targets six offerwall networks.
-
-Offers vary by:
-
-- Country.
-- Device.
-- Eligibility.
-- Campaign availability.
-
-Offerwall rewards must only be credited after confirmed postbacks.
-
-Required protections:
-
-- Idempotency.
-- Reversal handling.
-- Fraud detection.
-- Transaction records.
-
-12.1 Clipping
-
-Players may edit and publish promotional video clips.
-
-The player receives PAL according to the campaign rules.
-
-The game owner receives the real campaign revenue.
-
-13. Business and Production Economy
-
-Businesses must produce appropriate goods and resources.
-
-Examples:
-
-- Factories produce industrial resources.
-- Farms produce agricultural goods.
-- Shops receive inventory.
-- Transport companies receive operating resources.
-
-Campaign rewards for businesses must be predetermined by campaign type and verified results.
-
-Resources must not be generated randomly without economic justification.
-
-Industries transform inputs into outputs. They must not create raw materials from nothing.
-
-14. Resources and Industry
-
-Natural resources include:
-
-- Iron.
-- Oil.
-- Coal.
-- Copper.
-- Wood.
-
-Industrial products include:
-
-- Steel.
-- Refined fuel.
-- Vehicles.
-- Machines.
-- Construction materials.
-
-Food resources include:
-
-- Crops.
-- Meat.
-- Fish.
-- Vegetables.
-- Processed foods.
-
-Resource extraction reduces reserves.
-
-Renewable resources depend on environmental conditions, water, soil, weather, costs and regeneration.
-
-Prices may begin with predefined reference values and later respond to supply, demand, inventory, production, transport and labor costs.
-
-15. Agriculture and Food
-
-Agriculture requires:
-
-- Water.
-- Suitable soil.
-- Transportation.
-- Storage.
-- Labor.
-- Weather conditions.
-
-Food production must account for:
-
-- Growth.
-- Harvesting.
-- Storage.
-- Transportation.
-- Spoilage.
-- Processing.
-
-Fishing and animal farming must follow appropriate environmental and production rules.
-
-16. Wildlife and Environment
-
-The world must include diverse:
-
-- Mammals.
-- Birds.
-- Reptiles.
-- Insects.
-- Small organisms.
-- Marine life.
-
-Marine life includes fish, sharks, whales, dolphins, octopuses, squid, crustaceans, shellfish and turtles.
-
-Each species must have:
-
-- Habitat.
-- Behavior.
-- Diet.
-- Reproduction.
-- Activity patterns.
-- Risk characteristics.
-
-Fishing and hunting must affect population levels and ecological balance.
-
-Some species are poisonous, unsafe to eat or protected.
-
-Food may require processing and cooking.
-
-Pollution and habitat destruction affect wildlife and ecosystems.
-
-17. Infrastructure
-
-Infrastructure includes:
-
-- Roads.
-- Bridges.
-- Tunnels.
-- Traffic signals.
-- Sidewalks.
-- Railways.
-- Water wells and reservoirs.
-- Water treatment.
-- Sewage systems.
-- Electricity generation and distribution.
-- Internet and telecommunications.
-- Gas networks.
-- Street lighting.
-- Waste management.
-- Airports.
-- Ports.
-
-Every infrastructure system has capacity, quality, operating costs and maintenance requirements.
-
-Neglect can cause:
-
-- Road deterioration.
-- Bridge safety problems.
-- Water leaks.
-- Water shortages.
-- Sewage pollution.
-- Power outages.
-- Telecommunications failures.
-- Railway delays.
-
-City managers allocate budgets and may hire players or companies for maintenance.
-
-18. Transportation
-
-Civilian transportation:
-
-- Buses.
-- Taxis.
-- Passenger trains.
-- Private vehicles.
-- Airports.
-
-Commercial transportation:
-
-- Trucks.
-- Freight trains.
-- Ships.
-- Warehouses.
-- Distribution centers.
-
-Strategic transportation:
-
-- Military logistics.
-- Supply routes.
-- Port and airport security.
-
-Each transport type has:
-
-- Capacity.
-- Speed.
-- Cost.
-- Fuel consumption.
-- Infrastructure requirements.
-
-Distance affects delivery time, fuel, wages, food spoilage, travel costs and land values.
-
-Airports connect cities for a fee.
-
-19. Trade and International Relations
-
-Cities and regions may establish:
-
-- Import agreements.
-- Export agreements.
-- Transit agreements.
-- Transport agreements.
-- Economic alliances.
-- Defense alliances.
-- Neutrality agreements.
-
-Rules may cover:
-
-- Trade restrictions.
-- Tensions.
-- Blockades.
-- War.
-- Ceasefires.
-- Peace agreements.
-- Reconstruction.
-
-War can affect infrastructure, supply routes, prices and logistics.
-
-Neutral cities may experience different economic effects.
-
-Player property must have protection and clear rules during conflicts.
-
-20. City Governance
-
-City managers control:
-
-- Development approvals.
-- Roads.
-- Lighting.
-- Sidewalks.
-- Decoration.
-- Public projects.
-- City budgets.
-- Maintenance.
-
-Each city has a treasury.
-
-Commercial activity and public advertising must follow the updated economic rules.
-
-20.1 Elections
-
-- Election cycle: every four in-game years.
-- One in-game year equals three real weeks.
-- One management cycle therefore equals 84 real days.
-- Election quorum: 40%.
-- Removing a manager requires approval from 60% of valid votes, provided quorum is reached.
-
-The precise definition of eligible voters and quorum calculation must be finalized before implementation.
-
-20.2 Manager Removal
-
-A removal petition and vote must follow transparent rules.
-
-Voting records must be protected against duplication and manipulation.
-
-21. Government Facilities
-
-Government facilities include:
+Examples include:
 
 - Hospitals.
 - Schools.
@@ -683,261 +361,277 @@ Government facilities include:
 - Airports.
 - Other public facilities.
 
-Government land is not ordinary player-owned land.
+These facilities can only be transferred or acquired through an application and city manager approval.
 
-Transfer or sale requires:
+The government-facility transfer model is separate from ordinary player-to-player real estate transactions.
 
-- Application.
-- City manager approval.
-- Compliance with government-facility rules.
+The approved government-facility transfer arrangement specifies that the transaction is paid in real money to the game developer, while the city receives the equivalent virtual amount.
 
-The real-money sale proceeds for a government facility go entirely to the game developer.
+This is not subject to the ordinary 3% PAL transaction tax.
 
-The city receives an equivalent PAL amount.
+---
 
-This is not the ordinary 3% PAL transaction tax.
+11. Construction and Project Editors
 
-22. Advertising
+THE EARTH must provide modular construction and project creation tools.
 
-Player-owned advertising spaces generate revenue for the player according to the advertising contract.
+Players must be able to create and customize buildings, businesses, and projects within the rules of the world.
 
-Public advertising spaces may be contracted by the city with companies.
+The editor must support:
 
-The revenue distribution for public advertising spaces remains undecided.
+- Building components.
+- Interior customization.
+- Project layouts.
+- Functional elements.
+- Camera customization.
+- Configurable behaviors.
+- Approved interactions.
 
-Do not automatically apply the old 10% advertising tax.
+Examples include:
 
-The tax treatment of public advertising contracts under the 3% PAL rule also requires a specific decision.
+- A hardware shop.
+- A factory.
+- A wrestling business with custom movement and venue camera angles.
+- Other player-created businesses.
 
-23. Official Account Marketplace
+Some custom behaviors may require city manager approval before publication or activation.
 
-The black market is permanently cancelled.
+The editor must use controlled and sandboxed systems rather than allowing unrestricted execution of arbitrary code.
 
-The official marketplace is for player-to-player account sales in real USD.
+---
 
-Commission:
+12. Economy and PAL Currency
 
-- Seller receives 90%.
-- Game owner receives 10%.
+12.1 PAL
+
+PAL is the internal virtual currency of THE EARTH.
+
+PAL is used for eligible in-world transactions.
+
+PAL is not a withdrawable currency and must not be convertible into USD or stablecoins.
+
+12.2 PAL Transactions
+
+PAL is intended to be used for:
+
+- Land transactions.
+- Real estate.
+- Products.
+- Services.
+- Paid experiences.
+- Paid games and activities.
+- Other eligible in-world transactions.
+
+12.3 City Tax
+
+A 3% tax applies to eligible PAL transactions.
+
+The tax is allocated to the relevant city treasury.
+
+The previous 10% tax on ordinary commerce and advertising is cancelled.
+
+The 3% PAL tax must not be confused with the 10% commission on official real-money account sales.
+
+12.4 Economic Monitoring
+
+The system must monitor:
+
+- PAL issuance.
+- PAL circulation.
+- PAL sinks.
+- Market liquidity.
+- Supply and demand.
+- Production.
+- Inventory.
+- Purchasing power.
+- Transaction volume.
+- Economic concentration.
+
+The purpose is to maintain economic visibility and support responsible balancing.
+
+---
+
+13. Resources, Production, Agriculture, and Industry
+
+The world economy must include natural resources and player-operated production.
+
+Planned systems include:
+
+- Resource gathering.
+- Agriculture.
+- Factories.
+- Manufacturing.
+- Food production.
+- Construction materials.
+- Transportation resources.
+- Resource trade.
+- Imports and exports.
+
+Resources may initially be abundant, with scarcity increasing over time depending on extraction, consumption, and production.
+
+Factories and businesses must produce resources according to their capabilities and operating conditions.
+
+Resource prices must follow the intended economic model:
+
+- Prices can be fixed before a production market is established.
+- Prices become market-driven when sufficient production and trade exist.
+
+Production and inventory must be persistent.
+
+---
+
+14. Businesses, Jobs, and Contracts
+
+Players can establish businesses and employ other players.
+
+Businesses may include:
+
+- Shops.
+- Factories.
+- Farms.
+- Transportation companies.
+- Advertising businesses.
+- Other permitted commercial activities.
+
+Business owners can publish job opportunities.
+
+Applicants can review and agree to contract terms through the game's communication system.
+
+Employment contracts must record the agreed conditions.
+
+The system must distinguish business ownership, employment, inventory, production, and financial transactions.
+
+---
+
+15. Offerwalls and Clipping
+
+THE EARTH is planned to include external promotional activity systems.
+
+Players may choose between:
+
+1. Offerwalls.
+2. Clipping campaigns.
+
+The game owner receives real revenue from approved campaigns.
+
+Players receive PAL as their in-game reward.
+
+Players do not receive USD directly through these activities.
+
+15.1 Offerwalls
+
+The system targets integration with six Offerwall networks.
+
+Offer availability may vary according to:
+
+- Country.
+- Device.
+- Campaign eligibility.
+- Advertiser restrictions.
+- User eligibility.
+
+Rewards must only be credited after a confirmed provider postback.
+
+Technical requirements include:
+
+- Server-side postback verification.
+- Idempotency.
+- Duplicate-event protection.
+- Reversal handling.
+- Fraud detection.
+- Transaction logging.
+
+15.2 Clipping
+
+Players may create, edit, and publish promotional video clips.
+
+The business or campaign owner benefits from the resulting promotional activity.
+
+The player receives PAL according to the campaign rules.
+
+The game owner receives the campaign's real-money revenue.
+
+15.3 Business-Specific Rewards
+
+Campaigns may provide virtual resources or products to the participating business according to the campaign type and verified results.
+
+Examples:
+
+- Factory campaigns provide specified production resources.
+- Farm campaigns provide specified agricultural supplies.
+- Shop campaigns provide specified inventory.
+- Transportation campaigns provide specified operating resources.
+
+Campaign rewards must be defined in advance and must not be arbitrary.
+
+The resource reward model must be tied to the campaign's declared rules and results.
+
+---
+
+16. Advertising
+
+The world may contain advertising spaces and promotional opportunities.
+
+Planned advertising formats include:
+
+- Public advertising boards.
+- In-business advertising.
+- Commercial property advertising.
+- Advertising contracts.
+- Promotional campaigns.
+
+Advertising arrangements must record their contractual terms.
+
+The distribution of revenue from certain public advertising spaces remains unresolved.
+
+The tax treatment of public advertising contracts also remains unresolved.
+
+The cancelled 10% ordinary commerce and advertising tax must not be reintroduced without an explicit new decision.
+
+---
+
+17. Official Account Marketplace
+
+The official marketplace is specifically intended for player-to-player account sales using real money.
+
+The marketplace commission is 10%.
 
 Example:
 
-- Account sale price: 10,000 USD.
-- Seller receives: 9,000 USD.
-- Game owner receives: 1,000 USD.
+For a completed account sale worth USD 10,000:
 
-Account transfers require:
+- Seller receives USD 9,000.
+- Game operator receives USD 1,000.
 
-- Ownership verification.
-- Identity checks when appropriate.
-- Updating access credentials.
-- Revoking old sessions.
-- Recording transfer history.
+Requirements
+
+- Account ownership verification.
+- Secure account transfer.
+- Login credential updates.
+- Revocation of previous sessions.
+- Transfer history.
+- Transaction records.
 - Dispute handling.
-- Refund and fraud procedures.
+- Fraud prevention.
+- Refund and chargeback handling.
 
-External account sales are against the game's rules.
+The official account marketplace is separate from the in-world PAL economy.
 
-Detection must use fair investigations. IP addresses and device fingerprints are risk signals, not conclusive proof.
+Land, products, and ordinary services are traded using PAL under their applicable rules.
 
-24. Identity Verification and Security
+The unofficial account marketplace is not an authorized marketplace under the intended game rules.
 
-Identity verification using a national identity document or passport is required for sensitive cases, including:
+Investigations into external account trading must use fair evidence-based processes.
 
-- Account ownership transfers.
-- Sensitive ownership changes.
-- Suspected account takeover.
-- Financial procedures requiring verification.
+IP addresses and device fingerprints are risk signals, not conclusive proof by themselves.
 
-A simple IP or device change must not automatically require identity documents or cause an account ban.
+---
 
-Additional security checks may be used when justified.
+18. Market Integrity and Anti-Manipulation
 
-Privacy, consent and applicable data-protection laws must be respected.
+The game must include tools to monitor economic manipulation and suspicious activity.
 
-25. Health and Medical Simulation
-
-The health system includes:
-
-- Heart and circulation.
-- Respiration.
-- Muscles.
-- Bones and joints.
-- Nervous system.
-- Nutrition.
-- Hydration.
-- Sleep.
-- Fatigue.
-- Mental wellbeing.
-- Immunity.
-
-Illness and injury can affect:
-
-- Movement.
-- Running.
-- Strength.
-- Balance.
-- Endurance.
-- Concentration.
-- Recovery.
-
-Medical facilities include:
-
-- Hospitals.
-- Clinics.
-- Doctors.
-- Examinations.
-- Diagnosis.
-- Treatment.
-- Sports injuries.
-- Accidents.
-- Physical therapy.
-- Rehabilitation.
-
-This is a gameplay simulation, not a real medical diagnostic tool.
-
-26. Food Preferences and Psychology
-
-Food preferences include:
-
-- Sweet.
-- Salty.
-- Sour.
-- Bitter.
-- Spicy.
-
-Other preferences:
-
-- Texture.
-- Smell.
-- Temperature.
-- Appearance.
-
-Players may develop likes and dislikes through experiences.
-
-Food memories may relate to:
-
-- Events.
-- Friends.
-- Places.
-- Illness.
-- Stress.
-- Hunger.
-
-Appetite depends on hunger, fullness, mood, stress, fatigue and sleep.
-
-Food affects satisfaction, mood, energy and nutrition.
-
-Restaurants can monitor aggregate customer reactions.
-
-A meal may succeed in one city and perform poorly in another.
-
-Food audio assets will be added manually by the project owner.
-
-27. Weather and Environmental Audio
-
-Weather includes:
-
-- Temperature.
-- Rain.
-- Wind.
-- Storms.
-- Snow where appropriate.
-- Humidity.
-- Heat waves.
-- Cold waves.
-- Seasons.
-
-Weather affects health, driving, agriculture, production and sports.
-
-Environmental audio must be realistic and location-dependent.
-
-Audio categories include:
-
-- Forests.
-- Birds.
-- Wildlife.
-- Wind.
-- Water.
-- Oceans.
-- Rain.
-- Thunder.
-- Cities.
-- Roads.
-- Factories.
-- Airports.
-- Ports.
-- Vehicles.
-- Machinery.
-- Human activity.
-
-Audio changes according to location, weather, time and distance.
-
-Audio streaming must be optimized.
-
-28. Sleep
-
-Initially, players can sleep only:
-
-- In a home they own.
-- In the street.
-
-Do not introduce rented beds or public sleeping facilities without a separate approved decision.
-
-29. Sports
-
-Every initial city has a basic football field.
-
-Supported match formats:
-
-- 1v1.
-- 3v3.
-- 5v5.
-
-Features:
-
-- Open invitations.
-- Private invitations.
-- Team assignment.
-- Match timers.
-- Results.
-- Player statistics.
-- Leagues.
-- Tournaments.
-- Rankings.
-- Top scorers.
-
-Larger stadiums may be added later.
-
-30. Death and Lives
-
-- Each account has five lives.
-- After all five lives are lost, the account is suspended for ten days.
-- After the suspension, five new lives are provided.
-- Account ownership and properties remain saved.
-- The system records the cause of death.
-- The player can see remaining lives and suspension time.
-
-31. Economy Protection and Market Freedom
-
-The game must protect market freedom while preventing deliberate market manipulation.
-
-There is no fixed maximum price for:
-
-- Land.
-- Real estate.
-- Products.
-- Resources.
-
-Players may freely determine listing prices.
-
-Natural speculation and legitimate trading are allowed.
-
-The game must not punish a player simply for listing an item at a high price.
-
-31.1 Anti-Manipulation Systems
-
-Implement:
+The approved mechanisms are:
 
 1. Market Analytics.
 2. Price Anomaly Detection.
@@ -949,174 +643,401 @@ Implement:
 8. Anti-Manipulation Rules.
 9. Graduated Penalties.
 
-These systems must help identify:
+18.1 Freedom of Pricing
 
-- Artificial price inflation.
-- Fake transactions.
-- Coordinated manipulation.
-- Market deception.
-- Deliberate inventory manipulation.
-- Fraudulent ownership patterns.
-- Resource concentration associated with abusive conduct.
+There is no maximum price ceiling for:
 
-An unusual price movement is a signal for investigation, not proof of misconduct.
+- Land.
+- Real estate.
+- Products.
+- Resources.
 
-Penalties require evidence and a fair review process.
+Players may engage in legitimate speculation and market activity.
 
-31.2 Economic Stability
+A high listing price alone is not proof of wrongdoing.
 
-Monitor:
+Unusual price movements are investigation signals, not automatic evidence of a violation.
 
-- PAL issuance.
-- PAL circulation.
-- Economic sinks.
-- Market liquidity.
-- Production.
-- Inventory.
-- Supply and demand.
-- Purchasing power.
-- City treasury balances.
+18.2 Investigations
 
-Do not impose arbitrary price ceilings as an inflation-control mechanism.
+Investigations must consider relevant evidence, including:
 
-32. Creator Verification and Promotional Registration
+- Transaction history.
+- Ownership relationships.
+- Repeated transfers.
+- Coordinated trading.
+- Market patterns.
+- Resource movements.
+- Account activity.
 
-The promotional registration requirement includes publishing the promotional video on at least three popular platforms.
+Penalties must be proportionate and based on evidence and review.
 
-Proof must use a specialized verification solution.
+Graduated penalties must be supported by a documented enforcement process.
 
-Possible methods:
+---
 
-- Official platform APIs.
-- Post URLs.
-- Manual review.
+19. City Governance
 
-Zealy may be considered as a supporting solution only where its capabilities and platform integrations are confirmed.
+Each city has a manager responsible for city administration.
 
-Do not claim that every platform supports automated verification.
+The manager's authority includes:
 
-The registration flow must explain the requirement before registration.
+- Development approvals.
+- Road planning.
+- Street lighting.
+- Sidewalks.
+- Decorations.
+- Public projects.
+- City development.
+- Approved city staff recruitment.
+- City budget oversight.
 
-The project must review platform rules regarding incentivized engagement and repetitive promotional content.
+19.1 Elections
 
-33. Maintenance Page
+City elections are planned every four in-game years.
 
-Create a separate maintenance page for:
+One in-game year equals three real-world weeks.
 
-- Server outages.
-- Scheduled maintenance.
-- Updates.
-- Infrastructure improvements.
+19.2 Manager Removal
 
-The page should display:
+A removal petition requires approval from 60% of the relevant residents according to the final eligibility rules.
 
-- Reason for downtime.
-- Server status.
-- Estimated completion time when known.
-- Progress only when supported by actual data.
+The precise voting eligibility and quorum calculation remain to be determined.
 
-The maintenance page should be hosted independently from the main game services where possible.
+19.3 City Treasury
 
-34. Technical Architecture
+The city treasury receives the applicable 3% PAL transaction tax.
 
-Initial frontend:
+City budgets must be monitored.
 
-- React.
-- Vite.
-- Three.js.
-- React Three Fiber.
-- Drei.
+Public spending may support city development, entertainment, assistance, and other approved projects.
 
-Later physics:
+19.4 Public Projects
 
-- Rapier.
+Cities may establish projects involving players in roles such as:
 
-Proposed infrastructure:
+- Entertainment.
+- Guidance.
+- Public services.
+- Other approved activities.
 
-- Cloudflare Pages.
-- Cloudflare Workers.
-- Durable Objects.
-- WebSockets.
-- D1.
-- R2.
+---
 
-GitHub manages the source code.
+20. Transportation and Inter-City Travel
 
-Cloudflare Free is suitable for experimentation and early development, but must not be assumed sufficient for millions of users or high concurrency.
+The world must support transportation networks connecting cities and regions.
 
-Infrastructure costs and capacity must be tested.
+Planned systems include:
 
-35. Server Authority and Data Integrity
+- Roads.
+- Civilian vehicles.
+- Commercial vehicles.
+- Airports.
+- Inter-city travel.
+- Transportation fees.
+- Logistics and trade routes.
 
-The server must be authoritative for:
+Airports are government-owned travel hubs.
 
-- Accounts.
+Airport acquisition or transfer follows the government-facility application and approval process.
+
+---
+
+21. Police, Army, and City Security
+
+The game is planned to include police and army roles.
+
+Players may serve in these roles according to the city's rules.
+
+City managers may recruit volunteers or paid staff.
+
+The system may support city defense, conflict, and inter-city security mechanics.
+
+Detailed combat and security rules must be defined during implementation.
+
+---
+
+22. Sports and Recreation
+
+Each city is planned to include starter football fields.
+
+Supported formats include:
+
+- 1v1.
+- 3v3.
+- 5v5.
+
+Cities may organize leagues and tournaments.
+
+City managers may configure local competition rules within the game framework.
+
+Additional recreational activities may be developed as separate systems.
+
+Standalone mini-games must not automatically be tied to the main economic system.
+
+Separate browser-game-style entertainment products may be offered through hardware shops or other approved businesses.
+
+---
+
+23. Wildlife and Environment
+
+The world is planned to include wildlife and marine life.
+
+Environmental systems may include:
+
+- Habitats.
+- Wildlife populations.
+- Marine environments.
+- Natural resource interactions.
+- Weather.
+- Environmental changes.
+
+These systems must be developed in a way that supports world performance and persistence.
+
+---
+
+24. Death and Player Lives
+
+The approved player-life model is:
+
+- A player has five lives.
+- After losing all five lives, the account enters a 10-day suspension period.
+- After the suspension period, the player receives five new lives.
+- The player's account and owned property remain preserved.
+
+The exact death conditions and detailed recovery mechanics will be implemented later.
+
+---
+
+25. Maintenance System
+
+THE EARTH must have a separate maintenance page.
+
+The maintenance page must be available when the main game is temporarily unavailable.
+
+It must communicate the maintenance status to players.
+
+---
+
+26. Security and Fair Play
+
+The project must use server-authoritative validation for important operations.
+
+Critical systems include:
+
+- Authentication.
+- Account ownership.
+- Property ownership.
+- Currency balances.
+- Marketplace transactions.
+- Resource production.
+- Campaign rewards.
+- City management permissions.
+- Voice proximity authorization.
+
+The system must maintain audit records for important economic and administrative actions.
+
+Security and anti-fraud systems must distinguish suspicious indicators from proven violations.
+
+---
+
+27. Development Roadmap
+
+The project is planned in the following major stages.
+
+Stage 1 — Project Foundation
+
+- Repository setup.
+- Application entry point.
+- Frontend structure.
+- Technical environment.
+- Initial interface.
+- Documentation.
+
+Stage 2 — World Coordinates and Land Grid
+
+- Coordinate system.
+- Grid identification.
+- Five-million-square land plan.
+- Land data model.
+
+Stage 3 — Regions and Sectors
+
+- World regions.
+- Sector boundaries.
+- Regional organization.
+
+Stage 4 — Chunk Loading
+
+- Loading and unloading.
+- Streaming.
+- LOD foundations.
+- Memory management.
+
+Stage 5 — Terrain
+
+- Mountains.
+- Rivers.
+- Lakes.
+- Plains.
+- Coasts.
+- Natural environments.
+
+Stage 6 — Roads and Infrastructure
+
+- Roads.
+- Lighting.
+- Sidewalks.
+- Transportation networks.
+
+Stage 7 — Cities and Public Facilities
+
+- Initial cities.
+- Government buildings.
+- Public facilities.
+- City structure.
+
+Stage 8 — Graphics
+
+- Low, Medium, High, and Ultra.
+- Materials.
+- Lighting.
+- Shadows.
+- Reflections.
+- Performance adaptation.
+
+Stage 9 — Player and Desktop Controls
+
+- Character.
+- Movement.
+- Camera.
+- Desktop interaction.
+
+Stage 10 — Mobile Controls
+
+- Touch controls.
+- Mobile camera.
+- Responsive gameplay.
+
+Stage 11 — Vehicles
+
+- Civilian vehicles.
+- Commercial vehicles.
+- Transportation systems.
+
+Stage 12 — Accounts and Persistent Server
+
+- Authentication.
+- Database.
+- Player persistence.
+- Ownership records.
+
+Stage 13 — Multiplayer and Real-Time Communication
+
+- Multiplayer synchronization.
+- Real-time player positions.
+- Proximity Voice Chat.
+- Spatial Audio.
+- Voice moderation.
+- Scalable communication.
+
+Stage 14 — Land, Real Estate, and Construction
+
 - Ownership.
+- Purchases.
+- Building.
+- Project editors.
+- Customization.
+
+Stage 15 — Resources and Production
+
+- Resource collection.
+- Agriculture.
+- Factories.
+- Food.
+- Manufacturing.
+
+Stage 16 — PAL Economy and Trade
+
 - PAL balances.
-- Taxes.
 - Transactions.
-- City management.
+- Taxation.
+- Trade.
+- Imports and exports.
+
+Stage 17 — Businesses and Employment
+
+- Shops.
+- Companies.
+- Jobs.
+- Contracts.
+- Advertising.
+- Official account marketplace.
+- Offerwalls and clipping.
+
+Stage 18 — City Management
+
+- Governance.
 - Elections.
-- Lives.
-- Creator earnings.
-- Marketplace transfers.
+- Budgets.
+- Public projects.
+- Maintenance.
 
-Every sensitive transaction must be validated server-side.
+Stage 19 — Inter-City Relations and Security
 
-The client must never be trusted to determine final economic balances.
+- Trade connections.
+- Alliances.
+- Police.
+- Army.
+- Conflicts and defense.
 
-36. Development Roadmap
+Stage 20 — Life and Social Systems
 
-The project is divided into 20 major stages.
+- Health.
+- Food.
+- Sleep.
+- Weather.
+- Wildlife.
+- Sports.
+- Social activities.
+- Final testing and release preparation.
 
-1. Project foundation and files.
-2. World coordinate system and five million land squares.
-3. Regions and sectors.
-4. Chunk loading.
-5. Terrain, mountains, rivers, lakes and coasts.
-6. Roads, transportation and infrastructure.
-7. Cities and initial public facilities.
-8. Graphics, lighting, shadows and materials.
-9. Player, movement, camera and controls.
-10. Mobile touch and screen orientation.
-11. Vehicles and transportation.
-12. Accounts, backend and persistent storage.
-13. Multiplayer and real-time communication.
-14. Land, real estate, building and project editors.
-15. Natural resources, industry, agriculture and food.
-16. PAL economy, trade, imports and exports.
-17. Jobs, businesses, advertising and official marketplace.
-18. City management, elections, budgets and maintenance.
-19. Inter-city relations, alliances, police, military and conflicts.
-20. Health, wildlife, sports, weather, sleep and social systems, followed by testing and launch.
+Each stage must have functional tests before dependent systems are considered complete.
 
-Each stage must have tests before the next stage begins.
+---
 
-37. Open Decisions
+28. Open Decisions
 
-The following decisions remain unresolved and must not be invented:
+The following subjects are not finalized and must not be treated as approved technical or economic decisions.
 
-1. Total world area and final region/sector distribution.
-2. Revenue distribution for public advertising spaces.
-3. Exact tax treatment of public advertising contracts.
-4. Exact nature of the 3,000 USD Creator Program purchased credits.
-5. Final verification provider for promotional publishing across three platforms.
-6. Payment provider approval for PAL purchases and account marketplace transactions.
-7. Creator cash payout provider and eligibility.
-8. Exact eligible voter population and quorum calculation.
-9. Product reference-value methodology and update frequency.
-10. Exact economic resource rewards for each campaign type.
+1. Total geographical size of the world beyond the 125 km² purchasable land grid.
+2. Exact distribution of regions, oceans, wilderness, and cities.
+3. Revenue distribution for public advertising spaces.
+4. Tax treatment of public advertising contracts.
+5. Exact meaning and structure of the USD 3,000 Creator Program purchase requirement.
+6. Selection of the platform used to verify publishing activity across three platforms.
+7. Voting eligibility and quorum calculations.
+8. Reference value and calculation method for certain products and rewards.
+9. Exact resource rewards for each campaign type.
+10. Detailed technical provider and infrastructure choices for voice communication.
+11. Detailed numerical balancing of life, health, production, and economic systems.
 
-38. Development Principles
+These decisions require explicit approval before implementation.
 
-- Do not silently remove approved features.
-- Do not change economic rules without approval.
-- Do not mix PAL with real USD.
-- Do not introduce price ceilings.
-- Do not confuse first city managers with Founders Badge recipients.
-- Do not treat five million land squares as the complete world.
-- Do not assume all devices can run Ultra.
-- Do not claim a feature is implemented until it has been built and tested.
-- Preserve project documentation as the project evolves.
-- Update CHANGELOG.md after meaningful changes.
-- Test every development stage.
+---
+
+29. Implementation Status
+
+This document describes the intended project.
+
+Documentation does not mean that a feature has already been implemented.
+
+A feature is considered implemented only after:
+
+1. Its code has been added.
+2. Its required backend and data systems exist.
+3. Its functionality has been tested.
+4. Its security requirements have been checked.
+5. Its acceptance criteria have been met.
+
+THE EARTH — Build the world step by step.
