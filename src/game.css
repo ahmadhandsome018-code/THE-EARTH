@@ -1,120 +1,215 @@
+/* =====================================
+   THE EARTH - Game Interface
+   ===================================== */
+
+* {
+  box-sizing: border-box;
+}
+
 .game-screen {
   position: fixed;
   inset: 0;
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #91b6bb;
-  color: white;
+  background: #101820;
   font-family: "Cairo", sans-serif;
+  direction: ltr;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .game-screen canvas {
   display: block;
   width: 100%;
   height: 100%;
+  outline: none;
   touch-action: none;
 }
+
+/* =====================================
+   TOP BAR
+   ===================================== */
 
 .game-topbar {
   position: absolute;
   top: 0;
-  right: 0;
   left: 0;
-  padding: 14px 20px;
+  right: 0;
+  min-height: 58px;
+  padding: 10px 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  z-index: 10;
+  color: white;
   background: linear-gradient(
     to bottom,
-    rgba(0, 0, 0, 0.55),
-    transparent
+    rgba(8, 15, 19, 0.8),
+    rgba(8, 15, 19, 0)
   );
-  pointer-events: none;
-}
-
-.game-topbar button {
-  pointer-events: auto;
-  width: 38px;
-  height: 38px;
-  border: 1px solid rgba(255,255,255,0.4);
-  border-radius: 50%;
-  background: rgba(0,0,0,0.35);
-  color: white;
-  font-size: 20px;
 }
 
 .game-logo {
-  font-size: 21px;
+  font-size: 19px;
   font-weight: 800;
   letter-spacing: 1px;
+  color: #ffffff;
+  white-space: nowrap;
 }
 
 .game-coordinates {
-  font-size: 12px;
+  font-family: monospace;
+  font-size: 13px;
+  color: #d9e8e4;
   direction: ltr;
-  background: rgba(0,0,0,0.35);
-  padding: 7px 12px;
-  border-radius: 20px;
+  white-space: nowrap;
 }
+
+.game-topbar button {
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  color: white;
+  background: rgba(20, 35, 40, 0.65);
+  font-size: 18px;
+  cursor: pointer;
+}
+
+/* =====================================
+   HELP / START WINDOW
+   ===================================== */
 
 .game-help {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: min(330px, calc(100% - 40px));
-  padding: 22px;
+  width: min(88%, 360px);
+  padding: 25px 22px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 18px;
-  background: rgba(13, 26, 29, 0.92);
-  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(12, 24, 29, 0.92);
+  color: white;
   text-align: center;
-  line-height: 1.8;
+  z-index: 30;
+  direction: rtl;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .game-help strong {
-  font-size: 20px;
+  display: block;
+  margin-bottom: 15px;
+  font-size: 21px;
+  font-weight: 800;
 }
 
 .game-help p {
-  margin: 8px 0;
+  margin: 9px 0;
+  color: #d5e2df;
   font-size: 14px;
-  color: #d5e5e5;
+  line-height: 1.7;
 }
 
 .game-help button {
-  margin-top: 12px;
-  padding: 9px 25px;
-  border: 0;
+  width: 100%;
+  min-height: 46px;
+  margin-top: 16px;
+  border: none;
   border-radius: 10px;
-  background: #3b9b75;
-  color: white;
+  color: #10221b;
+  background: #a8d9a0;
   font-family: inherit;
-  font-weight: bold;
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
 }
+
+.game-help button:active {
+  transform: scale(0.97);
+}
+
+/* =====================================
+   BOTTOM BAR
+   ===================================== */
 
 .game-bottom {
   position: absolute;
-  bottom: 0;
   left: 0;
   right: 0;
-  padding: 12px 18px;
+  bottom: 0;
+  min-height: 42px;
+  padding: 10px 16px;
   display: flex;
   justify-content: space-between;
-  font-size: 10px;
-  letter-spacing: 1px;
+  align-items: center;
+  gap: 10px;
+  z-index: 10;
+  color: rgba(255, 255, 255, 0.85);
   background: linear-gradient(
     to top,
-    rgba(0,0,0,0.5),
-    transparent
+    rgba(8, 15, 19, 0.75),
+    rgba(8, 15, 19, 0)
   );
-  pointer-events: none;
+  font-family: monospace;
+  font-size: 10px;
+  letter-spacing: 1px;
 }
 
-@media (max-width: 600px) {
+/* =====================================
+   MOBILE JOYSTICK
+   ===================================== */
+
+.mobile-joystick {
+  position: absolute;
+  left: 24px;
+  bottom: 65px;
+  width: 120px;
+  height: 120px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: pointer;
+}
+
+.joystick-base {
+  width: 110px;
+  height: 110px;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 30, 35, 0.5);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+.joystick-knob {
+  width: 48px;
+  height: 48px;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  border-radius: 50%;
+  background: rgba(225, 235, 235, 0.85);
+  pointer-events: none;
+  transition: background 0.1s;
+}
+
+/* =====================================
+   SMALL SCREENS
+   ===================================== */
+
+@media (max-width: 480px) {
   .game-topbar {
-    padding: 10px;
+    padding: 8px 12px;
   }
 
   .game-logo {
@@ -122,10 +217,46 @@
   }
 
   .game-coordinates {
-    font-size: 10px;
+    font-size: 11px;
   }
 
+  .game-bottom {
+    font-size: 9px;
+    padding: 8px 10px;
+  }
+
+  .mobile-joystick {
+    left: 18px;
+    bottom: 58px;
+  }
+}
+
+/* =====================================
+   LANDSCAPE MODE
+   ===================================== */
+
+@media (max-height: 500px) {
   .game-help {
-    padding: 16px;
+    width: min(75%, 400px);
+    padding: 12px 18px;
+  }
+
+  .game-help strong {
+    margin-bottom: 6px;
+    font-size: 17px;
+  }
+
+  .game-help p {
+    margin: 4px 0;
+    font-size: 12px;
+  }
+
+  .game-help button {
+    min-height: 38px;
+    margin-top: 8px;
+  }
+
+  .mobile-joystick {
+    bottom: 48px;
   }
 }
