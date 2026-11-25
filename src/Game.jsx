@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { Sky, PointerLockControls } from "@react-three/drei";
 import * as THREE from "three";
 import "./game.css";
@@ -7,31 +7,68 @@ import "./game.css";
 const CHUNK_SIZE = 80;
 const VIEW_DISTANCE = 2;
 const PLAYER_HEIGHT = 1.7;
-const PLAYER_RADIUS = 0.42;
+const PLAYER_RADIUS = 0.48;
 const MOVE_SPEED = 7;
-const LOOK_SENSITIVITY = 0.004;
+const LOOK_SENSITIVITY = 0.0035;
 
-function seededRandom(x, z, seed = 0) {
+const LAKE = { x: 35, z: -25, radius: 16 };
+const ROAD_WIDTH = 7;
+
+function random2(x, z, seed = 0) {
   const value = Math.sin(x * 127.1 + z * 311.7 + seed * 74.7) * 43758.5453;
   return value - Math.floor(value);
 }
 
-function Tree({ position, scale = 1 }) {
+function distance2(x1, z1, x2, z2) {
+  return Math.hypot(x1 - x2, z1 - z2);
+}
+
+function isWater(x, z, margin = 0) {
+  return distance2(x, z, LAKE.x, LAKE.z) < LAKE.radius + margin;
+}
+
+function isRoad(x, z) {
+  const localX = ((x % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+  const localZ = ((z % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+
+  return (
+    localX < ROAD_WIDTH ||
+    localX > CHUNK_SIZE - ROAD_WIDTH ||
+    localZ < ROAD_WIDTH ||
+    localZ > CHUNK_SIZE - ROAD_WIDTH
+  );
+}
+
+function terrainHeight(x, z) {
+  return (
+    Math.sin(x * 0.018) * 0.45 +
+    Math.cos(z * 0.021) * 0.35 +
+    Math.sin((x + z) * 0.012) * 0.25
+  );
+}
+
+function Tree({ position, scale = 1, variant = 0 }) {
+  const colors = ["#174d32", "#205f3b", "#286d43", "#16452f"];
+  const leafColor = colors[variant % colors.length];
+
   return (
     <group position={position} scale={scale}>
-      <mesh position={[0, 1, 0]} castShadow>
-        <cylinderGeometry args={[0.16, 0.24, 2, 8]} />
-        <meshStandardMaterial color="#60452d" />
+      <mesh position={[0, 1.15, 0]} castShadow>
+        <cylinderGeometry args={[0.12, 0.23, 2.3, 7]} />
+        <meshStandardMaterial color="#59402b" roughness={1} />
       </mesh>
 
-      <mesh position={[0, 2.25, 0]} castShadow>
-        <coneGeometry args={[1.1, 2.3, 9]} />
-        <meshStandardMaterial color="#176b38" roughness={0.9} />
+      <mesh position={[0, 2.45, 0]} castShadow>
+        <coneGeometry args={[1.05, 2.25, 8]} />
+        <meshStandardMaterial color={leafColor} roughness={0.95} />
       </mesh>
 
-      <mesh position={[0, 3.1, 0]} castShadow>
-        <coneGeometry args={[0.75, 1.8, 9]} />
-        <meshStandardMaterial color="#25834a" roughness={0.9} />
+      <mesh position={[0, 3.25, 0]} castShadow>
+        <coneGeometry args={[0.72, 1.8, 8]} />
+        <meshStandardMaterial
+          color={new THREE.Color(leafColor).multiplyScalar(1.2)}
+          roughness={0.95}
+        />
       </mesh>
     </group>
   );
@@ -45,53 +82,99 @@ function Building({ position, height, color }) {
         <meshStandardMaterial color={color} roughness={0.85} />
       </mesh>
 
-      {Array.from({ length: Math.floor(height / 2) }).map((_, i) => (
-        <mesh key={i} position={[2.51, 1.2 + i * 2, 0]}>
-          <boxGeometry args={[0.04, 0.8, 0.9]} />
-          <meshStandardMaterial
-            color="#8bd8e8"
-            roughness={0.2}
-            metalness={0.15}
-          />
-        </mesh>
-      ))}
+      {Array.from({ length: Math.max(1, Math.floor(height / 2)) }).map(
+        (_, i) => (
+          <mesh key={i} position={[2.51, 1.2 + i * 2, 0]}>
+            <boxGeometry args={[0.04, 0.8, 0.9]} />
+            <meshStandardMaterial
+              color="#9bcbd0"
+              emissive="#23434a"
+              emissiveIntensity={0.15}
+              roughness={0.3}
+            />
+          </mesh>
+        )
+      )}
     </group>
   );
 }
 
-/* إنشاء محتوى المناطق بطريقة ثابتة */
+/*
+ * توزيع الأشجار:
+ * - كل شجرة لها خلية مستقلة.
+ * - يتم استخدام إحداثيات ثابتة حتى لا يتغير العالم عند إعادة التحميل.
+ * - لا توضع الأشجار داخل المياه أو الطرق أو بالقرب من المباني.
+ */
 function createChunk(cx, cz) {
   const objects = [];
+  const occupied = [];
 
-  for (let i = 0; i < 22; i++) {
-    const seed = cx * 100 + cz * 200 + i;
-    const x = cx * CHUNK_SIZE + seededRandom(seed, i) * CHUNK_SIZE;
-    const z = cz * CHUNK_SIZE + seededRandom(i, seed, 3) * CHUNK_SIZE;
+  const cellSize = 13;
+  const cells = Math.floor(CHUNK_SIZE / cellSize);
 
-    const nearRoad =
-      Math.abs(x) % 80 < 9 ||
-      Math.abs(z) % 80 < 9;
+  for (let gx = 0; gx < cells; gx++) {
+    for (let gz = 0; gz < cells; gz++) {
+      const seedX = cx * 1000 + gx;
+      const seedZ = cz * 1000 + gz;
 
-    if (nearRoad) continue;
+      const x =
+        cx * CHUNK_SIZE +
+        gx * cellSize +
+        3 +
+        random2(seedX, seedZ, 1) * 7;
 
-    const chance = seededRandom(x, z, 8);
+      const z =
+        cz * CHUNK_SIZE +
+        gz * cellSize +
+        3 +
+        random2(seedZ, seedX, 2) * 7;
 
-    if (chance > 0.22) {
+      if (isRoad(x, z)) continue;
+      if (isWater(x, z, 5)) continue;
+
+      // منطقة المباني المركزية
+      if (Math.abs(x) < 25 && Math.abs(z) < 25) continue;
+
+      // مجموعات نباتية طبيعية بدل توزيع متساوٍ بالكامل
+      const cluster = random2(
+        Math.floor(x / 35),
+        Math.floor(z / 35),
+        9
+      );
+
+      const chance = random2(seedX, seedZ, 4);
+
+      if (cluster < 0.17 || chance < 0.38) continue;
+
+      let tooClose = false;
+
+      for (const item of occupied) {
+        if (distance2(x, z, item.x, item.z) < 9) {
+          tooClose = true;
+          break;
+        }
+      }
+
+      if (tooClose) continue;
+
+      occupied.push({ x, z });
+
       objects.push({
         type: "tree",
         x,
         z,
-        scale: 0.8 + seededRandom(z, x, 2) * 0.5
+        scale: 0.85 + random2(seedZ, seedX, 7) * 0.35,
+        variant: Math.floor(random2(seedX, seedZ, 8) * 4)
       });
     }
   }
 
   if (cx === 0 && cz === 0) {
     objects.push(
-      { type: "building", x: 13, z: -13, height: 8, color: "#c5b79c" },
-      { type: "building", x: -13, z: -13, height: 6, color: "#d1c7b5" },
-      { type: "building", x: 13, z: 13, height: 10, color: "#b8c5c5" },
-      { type: "building", x: -13, z: 13, height: 7, color: "#c6b6a4" }
+      { type: "building", x: 18, z: 18, height: 8, color: "#b8aa91" },
+      { type: "building", x: -18, z: 18, height: 6, color: "#c9c0ad" },
+      { type: "building", x: 18, z: -18, height: 10, color: "#aebfc0" },
+      { type: "building", x: -18, z: -18, height: 7, color: "#c4b39f" }
     );
   }
 
@@ -102,31 +185,19 @@ function Chunk({ cx, cz, obstacles }) {
   const objects = useMemo(() => createChunk(cx, cz), [cx, cz]);
 
   useEffect(() => {
-    objects.forEach((object) => {
-      if (object.type === "tree") {
-        obstacles.current.push({
-          x: object.x,
-          z: object.z,
-          radius: 0.8 * object.scale,
-          height: 4.5 * object.scale
-        });
-      } else {
-        obstacles.current.push({
-          x: object.x,
-          z: object.z,
-          radius: 3.5,
-          height: object.height
-        });
-      }
-    });
+    const added = objects.map((object) => ({
+      x: object.x,
+      z: object.z,
+      radius: object.type === "tree" ? 0.75 * object.scale : 3.6,
+      height: object.type === "tree" ? 4.5 * object.scale : object.height
+    }));
+
+    obstacles.current.push(...added);
 
     return () => {
-      const positions = new Set(
-        objects.map((o) => `${o.x},${o.z}`)
-      );
-
+      const removeSet = new Set(added);
       obstacles.current = obstacles.current.filter(
-        (o) => !positions.has(`${o.x},${o.z}`)
+        (item) => !removeSet.has(item)
       );
     };
   }, [objects, obstacles]);
@@ -137,13 +208,22 @@ function Chunk({ cx, cz, obstacles }) {
         object.type === "tree" ? (
           <Tree
             key={index}
-            position={[object.x, 0, object.z]}
+            position={[
+              object.x,
+              terrainHeight(object.x, object.z),
+              object.z
+            ]}
             scale={object.scale}
+            variant={object.variant}
           />
         ) : (
           <Building
             key={index}
-            position={[object.x, 0, object.z]}
+            position={[
+              object.x,
+              terrainHeight(object.x, object.z),
+              object.z
+            ]}
             height={object.height}
             color={object.color}
           />
@@ -153,39 +233,92 @@ function Chunk({ cx, cz, obstacles }) {
   );
 }
 
-/* منطقة مياه تجريبية */
-function Water() {
-  const waterRef = useRef(null);
-
-  useFrame(({ clock }) => {
-    if (waterRef.current) {
-      waterRef.current.material.uniformsNeedUpdate = true;
-      waterRef.current.position.y = 0.08 + Math.sin(clock.elapsedTime * 1.2) * 0.025;
-    }
-  });
+function GroundChunk({ cx, cz }) {
+  const position = [cx * CHUNK_SIZE + CHUNK_SIZE / 2, -0.08, cz * CHUNK_SIZE + CHUNK_SIZE / 2];
 
   return (
     <mesh
-      ref={waterRef}
-      position={[35, 0.08, -25]}
+      position={position}
       rotation={[-Math.PI / 2, 0, 0]}
+      receiveShadow
     >
-      <circleGeometry args={[13, 64]} />
-      <meshPhysicalMaterial
-        color="#087b9a"
-        roughness={0.16}
-        metalness={0.15}
-        clearcoat={0.8}
-        clearcoatRoughness={0.15}
+      <planeGeometry args={[CHUNK_SIZE, CHUNK_SIZE, 16, 16]} />
+      <meshStandardMaterial
+        color="#527b4d"
+        roughness={1}
+        metalness={0}
       />
     </mesh>
   );
 }
 
+function Water() {
+  const waterRef = useRef(null);
+
+  useFrame(({ clock }) => {
+    if (waterRef.current) {
+      waterRef.current.position.y =
+        -0.025 + Math.sin(clock.elapsedTime * 0.8) * 0.018;
+    }
+  });
+
+  return (
+    <group position={[LAKE.x, 0, LAKE.z]}>
+      {/* حافة الشاطئ */}
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, -0.035, 0]}
+      >
+        <circleGeometry args={[LAKE.radius + 2.2, 80]} />
+        <meshStandardMaterial color="#b7a77e" roughness={1} />
+      </mesh>
+
+      {/* المياه */}
+      <mesh
+        ref={waterRef}
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, 0.02, 0]}
+      >
+        <circleGeometry args={[LAKE.radius, 80]} />
+        <meshPhysicalMaterial
+          color="#146b83"
+          roughness={0.2}
+          metalness={0.12}
+          clearcoat={0.9}
+          clearcoatRoughness={0.12}
+        />
+      </mesh>
+    </group>
+  );
+}
+
+function Road({ cx, cz }) {
+  return (
+    <group position={[cx * CHUNK_SIZE, 0, cz * CHUNK_SIZE]}>
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[CHUNK_SIZE / 2, -0.035, CHUNK_SIZE / 2]}
+      >
+        <planeGeometry args={[ROAD_WIDTH, CHUNK_SIZE]} />
+        <meshStandardMaterial color="#343b3b" roughness={0.95} />
+      </mesh>
+
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[CHUNK_SIZE / 2, -0.034, CHUNK_SIZE / 2]}
+      >
+        <planeGeometry args={[CHUNK_SIZE, ROAD_WIDTH]} />
+        <meshStandardMaterial color="#343b3b" roughness={0.95} />
+      </mesh>
+    </group>
+  );
+}
+
 function World({ playerPosition, obstacles }) {
+  const centerX = Math.floor(playerPosition.x / CHUNK_SIZE);
+  const centerZ = Math.floor(playerPosition.z / CHUNK_SIZE);
+
   const chunks = useMemo(() => {
-    const centerX = Math.floor(playerPosition.x / CHUNK_SIZE);
-    const centerZ = Math.floor(playerPosition.z / CHUNK_SIZE);
     const result = [];
 
     for (let x = -VIEW_DISTANCE; x <= VIEW_DISTANCE; x++) {
@@ -198,75 +331,39 @@ function World({ playerPosition, obstacles }) {
     }
 
     return result;
-  }, [
-    Math.floor(playerPosition.x / CHUNK_SIZE),
-    Math.floor(playerPosition.z / CHUNK_SIZE)
-  ]);
+  }, [centerX, centerZ]);
 
   return (
     <>
-      <ambientLight intensity={0.7} />
+      <ambientLight intensity={0.62} />
 
       <directionalLight
-        position={[30, 50, 20]}
-        intensity={1.8}
+        position={[35, 60, 25]}
+        intensity={1.55}
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
       />
 
-      <Sky
-        distance={450000}
-        sunPosition={[100, 30, 100]}
+      <hemisphereLight
+        skyColor="#c4e1ed"
+        groundColor="#43543b"
+        intensity={0.45}
       />
 
-      <fog attach="fog" args={["#b8d5d5", 100, 260]} />
+      <Sky distance={450000} sunPosition={[100, 35, 80]} />
 
-      {/* أرض كبيرة قابلة للاستكشاف */}
-      <mesh
-        rotation={[-Math.PI / 2, 0, 0]}
-        position={[0, -0.05, 0]}
-        receiveShadow
-      >
-        <planeGeometry args={[10000, 10000]} />
-        <meshStandardMaterial color="#547b4b" roughness={1} />
-      </mesh>
-
-      {/* شبكة الطرق */}
-      {Array.from({ length: 120 }, (_, i) => {
-        const offset = (i - 60) * CHUNK_SIZE;
-
-        return (
-          <React.Fragment key={i}>
-            <mesh
-              position={[offset, 0.01, 0]}
-              rotation={[-Math.PI / 2, 0, 0]}
-            >
-              <planeGeometry args={[9, 10000]} />
-              <meshStandardMaterial color="#343a3c" roughness={0.95} />
-            </mesh>
-
-            <mesh
-              position={[0, 0.012, offset]}
-              rotation={[-Math.PI / 2, 0, 0]}
-            >
-              <planeGeometry args={[10000, 9]} />
-              <meshStandardMaterial color="#343a3c" roughness={0.95} />
-            </mesh>
-          </React.Fragment>
-        );
-      })}
-
-      <Water />
+      <fog attach="fog" args={["#b8d0d3", 130, 330]} />
 
       {chunks.map(({ cx, cz }) => (
-        <Chunk
-          key={`${cx}:${cz}`}
-          cx={cx}
-          cz={cz}
-          obstacles={obstacles}
-        />
+        <React.Fragment key={`${cx}:${cz}`}>
+          <GroundChunk cx={cx} cz={cz} />
+          <Road cx={cx} cz={cz} />
+          <Chunk cx={cx} cz={cz} obstacles={obstacles} />
+        </React.Fragment>
       ))}
+
+      <Water />
     </>
   );
 }
@@ -279,6 +376,7 @@ function PlayerController({
 }) {
   const keys = useRef({});
   const position = useRef(new THREE.Vector3(0, PLAYER_HEIGHT, 8));
+  const lastUpdate = useRef(0);
 
   useEffect(() => {
     const down = (event) => {
@@ -336,37 +434,34 @@ function PlayerController({
 
     const collides = (x, z) =>
       obstacles.current.some((obstacle) => {
-        const dx = x - obstacle.x;
-        const dz = z - obstacle.z;
-        const distance = Math.sqrt(dx * dx + dz * dz);
-
-        return distance < obstacle.radius + PLAYER_RADIUS;
+        return (
+          distance2(x, z, obstacle.x, obstacle.z) <
+          obstacle.radius + PLAYER_RADIUS
+        );
       });
 
-    /* منع دخول الأشجار والمباني */
-    if (!collides(nextX, current.z)) current.x = nextX;
-    if (!collides(current.x, nextZ)) current.z = nextZ;
-
-    /* منع دخول منطقة الماء التجريبية */
-    const waterDistance = Math.hypot(
-      current.x - 35,
-      current.z + 25
-    );
-
-    if (waterDistance < 13.5) {
-      current.x = camera.position.x;
-      current.z = camera.position.z;
+    // تصادم منفصل للمحورين حتى يستطيع اللاعب التحرك بمحاذاة العوائق
+    if (!collides(nextX, current.z) && !isWater(nextX, current.z, 0.8)) {
+      current.x = nextX;
     }
 
-    current.y = PLAYER_HEIGHT;
+    if (!collides(current.x, nextZ) && !isWater(current.x, nextZ, 0.8)) {
+      current.z = nextZ;
+    }
+
+    current.y = PLAYER_HEIGHT + terrainHeight(current.x, current.z);
 
     camera.position.copy(current);
     cameraRef.current = camera;
 
-    onPositionChange({
-      x: Math.round(current.x),
-      z: Math.round(current.z)
-    });
+    if (Date.now() - lastUpdate.current > 100) {
+      lastUpdate.current = Date.now();
+
+      onPositionChange({
+        x: Math.round(current.x),
+        z: Math.round(current.z)
+      });
+    }
   });
 
   return null;
@@ -399,19 +494,20 @@ function MobileCameraLook({ cameraRef, enabled }) {
 
     const camera = cameraRef.current;
     camera.rotation.order = "YXZ";
-
     camera.rotation.y -= dx * LOOK_SENSITIVITY;
     camera.rotation.x -= dy * LOOK_SENSITIVITY;
 
     camera.rotation.x = THREE.MathUtils.clamp(
       camera.rotation.x,
-      -1.45,
-      1.45
+      -1.4,
+      1.4
     );
   };
 
   const up = (event) => {
-    if (touch.current?.id === event.pointerId) touch.current = null;
+    if (touch.current?.id === event.pointerId) {
+      touch.current = null;
+    }
   };
 
   return (
@@ -431,6 +527,8 @@ function MobileJoystick({ onChange }) {
   const pointer = useRef(null);
 
   const update = (event) => {
+    if (!baseRef.current) return;
+
     const rect = baseRef.current.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
@@ -441,8 +539,8 @@ function MobileJoystick({ onChange }) {
     const distance = Math.hypot(dx, dy);
 
     if (distance > max) {
-      dx = dx / distance * max;
-      dy = dy / distance * max;
+      dx = (dx / distance) * max;
+      dy = (dy / distance) * max;
     }
 
     setKnob({ x: dx, y: dy });
@@ -461,6 +559,7 @@ function MobileJoystick({ onChange }) {
 
   const up = (event) => {
     if (pointer.current !== event.pointerId) return;
+
     pointer.current = null;
     setKnob({ x: 0, y: 0 });
     onChange({ x: 0, y: 0 });
@@ -495,11 +594,12 @@ export default function Game() {
   const cameraRef = useRef(null);
 
   useEffect(() => {
-    const check = () =>
+    const check = () => {
       setMobile(
         window.matchMedia("(pointer: coarse)").matches ||
         window.innerWidth <= 900
       );
+    };
 
     check();
     window.addEventListener("resize", check);
@@ -518,6 +618,7 @@ export default function Game() {
           far: 500
         }}
         dpr={[1, 1.5]}
+        gl={{ antialias: true, powerPreference: "high-performance" }}
       >
         <World playerPosition={position} obstacles={obstacles} />
 
@@ -538,42 +639,63 @@ export default function Game() {
         </>
       )}
 
-      <div className="game-topbar">
-        <div className="game-logo">THE EARTH</div>
-
-        <div className="game-coordinates">
-          X: {position.x} | Z: {position.z}
+      <header className="game-topbar">
+        <div className="brand-mark">
+          <span className="brand-symbol">E</span>
+          <div>
+            <div className="game-logo">THE EARTH</div>
+            <small>WORLD SYSTEM / 001</small>
+          </div>
         </div>
 
-        <button onClick={() => setShowHelp(!showHelp)}>?</button>
+        <div className="game-coordinate-panel">
+          <span>LOCAL POSITION</span>
+          <strong>{String(position.x).padStart(4, "0")} / {String(position.z).padStart(4, "0")}</strong>
+        </div>
+
+        <button
+          className="help-button"
+          onClick={() => setShowHelp(!showHelp)}
+          aria-label="المساعدة"
+        >
+          ?
+        </button>
+      </header>
+
+      <div className="world-status">
+        <span className="status-dot" />
+        <span>WORLD ONLINE</span>
+        <span className="status-divider">/</span>
+        <span>EXPLORATION</span>
       </div>
 
       {showHelp && (
         <div className="game-help">
-          <strong>مرحبًا بك في THE EARTH</strong>
+          <div className="help-eyebrow">THE EARTH / FIRST ACCESS</div>
+          <strong>العالم مفتوح أمامك.</strong>
 
           {mobile ? (
             <>
-              <p>العصا أسفل اليسار للحركة.</p>
-              <p>اسحب إصبعك على يمين الشاشة لتغيير اتجاه النظر.</p>
+              <p>استخدم عصا الحركة للتنقل.</p>
+              <p>اسحب في الجهة اليمنى لتغيير اتجاه الكاميرا.</p>
             </>
           ) : (
             <>
               <p>W A S D للحركة.</p>
-              <p>استخدم الماوس للنظر حولك.</p>
+              <p>حرّك الماوس للنظر حولك، واضغط ESC لتحرير المؤشر.</p>
             </>
           )}
 
           <button onClick={() => setShowHelp(false)}>
-            دخول العالم
+            ابدأ الاستكشاف <span>↗</span>
           </button>
         </div>
       )}
 
-      <div className="game-bottom">
-        <span>WORLD PROTOTYPE</span>
-        <span>EXPLORATION MODE</span>
-      </div>
+      <footer className="game-bottom">
+        <span>THE EARTH — OPEN WORLD PROJECT</span>
+        <span>COORDINATES {position.x}, {position.z}</span>
+      </footer>
     </div>
   );
 }
