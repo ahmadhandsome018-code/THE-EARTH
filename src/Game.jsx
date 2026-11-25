@@ -1,23 +1,28 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import React, { useRef, useState, useEffect } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Sky, PointerLockControls } from "@react-three/drei";
 import * as THREE from "three";
 import "./game.css";
 
+const isMobileDevice = () =>
+  typeof window !== "undefined" &&
+  (window.matchMedia("(pointer: coarse)").matches ||
+    window.innerWidth <= 900);
+
 function Tree({ position, scale = 1 }) {
   return (
     <group position={position} scale={scale}>
-      <mesh position={[0, 1, 0]}>
+      <mesh position={[0, 1, 0]} castShadow>
         <cylinderGeometry args={[0.16, 0.23, 2, 8]} />
         <meshStandardMaterial color="#60452d" />
       </mesh>
 
-      <mesh position={[0, 2.35, 0]}>
+      <mesh position={[0, 2.35, 0]} castShadow>
         <coneGeometry args={[1.05, 2.4, 8]} />
         <meshStandardMaterial color="#245c38" roughness={1} />
       </mesh>
 
-      <mesh position={[0, 3.1, 0]}>
+      <mesh position={[0, 3.1, 0]} castShadow>
         <coneGeometry args={[0.72, 1.8, 8]} />
         <meshStandardMaterial color="#327447" roughness={1} />
       </mesh>
@@ -28,7 +33,7 @@ function Tree({ position, scale = 1 }) {
 function Building({ position, color = "#c8b9a0", height = 5 }) {
   return (
     <group position={position}>
-      <mesh position={[0, height / 2, 0]}>
+      <mesh position={[0, height / 2, 0]} castShadow receiveShadow>
         <boxGeometry args={[4, height, 4]} />
         <meshStandardMaterial color={color} roughness={0.85} />
       </mesh>
@@ -58,33 +63,30 @@ function Building({ position, color = "#c8b9a0", height = 5 }) {
   );
 }
 
-function World() {
-  const trees = useMemo(() => {
-    const result = [];
+/* مواقع ثابتة للأشجار لتجنب إعادة توزيعها عند كل تحديث */
+const TREE_POSITIONS = [];
 
-    for (let x = -35; x <= 35; x += 7) {
-      for (let z = -35; z <= 35; z += 7) {
-        const nearRoad = Math.abs(x) < 7 || Math.abs(z) < 7;
+for (let x = -42; x <= 42; x += 7) {
+  for (let z = -42; z <= 42; z += 7) {
+    const nearRoad = Math.abs(x) < 7 || Math.abs(z) < 7;
 
-        const seed = Math.abs(
-          Math.sin(x * 12.9898 + z * 78.233) * 43758.5453
-        ) % 1;
+    const value = Math.abs(
+      Math.sin(x * 12.9898 + z * 78.233) * 43758.5453
+    ) % 1;
 
-        if (!nearRoad && seed > 0.35) {
-          result.push({
-            position: [x, 0, z],
-            scale: 0.8 + (result.length % 4) * 0.1
-          });
-        }
-      }
+    if (!nearRoad && value > 0.35) {
+      TREE_POSITIONS.push({
+        position: [x, 0, z],
+        scale: 0.8 + (TREE_POSITIONS.length % 4) * 0.1
+      });
     }
+  }
+}
 
-    return result;
-  }, []);
-
+function World() {
   return (
     <>
-      <ambientLight intensity={0.55} />
+      <ambientLight intensity={0.65} />
 
       <directionalLight
         position={[30, 40, 20]}
@@ -101,18 +103,23 @@ function World() {
         azimuth={0.25}
       />
 
-      <fog attach="fog" args={["#b8d5d5", 45, 120]} />
+      <fog attach="fog" args={["#b8d5d5", 45, 150]} />
 
-      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[200, 200]} />
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        receiveShadow
+        position={[0, -0.03, 0]}
+      >
+        <planeGeometry args={[300, 300]} />
         <meshStandardMaterial color="#547b4b" roughness={1} />
       </mesh>
 
+      {/* الطرق */}
       <mesh
         position={[0, 0.025, 0]}
         rotation={[-Math.PI / 2, 0, 0]}
       >
-        <planeGeometry args={[9, 200]} />
+        <planeGeometry args={[9, 300]} />
         <meshStandardMaterial color="#343a3c" roughness={0.95} />
       </mesh>
 
@@ -120,28 +127,31 @@ function World() {
         position={[0, 0.03, 0]}
         rotation={[-Math.PI / 2, 0, 0]}
       >
-        <planeGeometry args={[200, 9]} />
+        <planeGeometry args={[300, 9]} />
         <meshStandardMaterial color="#343a3c" roughness={0.95} />
       </mesh>
 
+      {/* المباني */}
       <Building position={[12, 0, -12]} height={8} color="#c5b79c" />
       <Building position={[-13, 0, -13]} height={6} color="#d1c7b5" />
       <Building position={[13, 0, 13]} height={10} color="#b8c5c5" />
       <Building position={[-13, 0, 13]} height={7} color="#c6b6a4" />
 
+      {/* المياه */}
       <mesh
         position={[35, 0.08, -25]}
         rotation={[-Math.PI / 2, 0, 0]}
       >
         <circleGeometry args={[13, 48]} />
         <meshStandardMaterial
-          color="#287f9a"
-          roughness={0.2}
-          metalness={0.25}
+          color="#087b9a"
+          roughness={0.25}
+          metalness={0.15}
         />
       </mesh>
 
-      {trees.map((tree, index) => (
+      {/* الأشجار */}
+      {TREE_POSITIONS.map((tree, index) => (
         <Tree
           key={index}
           position={tree.position}
@@ -152,22 +162,56 @@ function World() {
   );
 }
 
-function PlayerController({
-  onPositionChange,
-  mobileInput,
-  enabled
-}) {
+/* التحكم في حركة اللاعب */
+function PlayerController({ joystick, onPositionChange }) {
   const keys = useRef({});
-  const lastPosition = useRef({ x: 0, z: 8 });
+  const velocity = useRef(new THREE.Vector3());
+
+  useFrame(({ camera }, delta) => {
+    const forward = new THREE.Vector3();
+    const right = new THREE.Vector3();
+
+    camera.getWorldDirection(forward);
+    forward.y = 0;
+    forward.normalize();
+
+    right.set(-forward.z, 0, forward.x);
+
+    let forwardInput = -joystick.y;
+    let sideInput = joystick.x;
+
+    if (keys.current.KeyW || keys.current.ArrowUp) forwardInput += 1;
+    if (keys.current.KeyS || keys.current.ArrowDown) forwardInput -= 1;
+    if (keys.current.KeyD || keys.current.ArrowRight) sideInput += 1;
+    if (keys.current.KeyA || keys.current.ArrowLeft) sideInput -= 1;
+
+    velocity.current.set(0, 0, 0);
+
+    velocity.current.addScaledVector(forward, forwardInput);
+    velocity.current.addScaledVector(right, sideInput);
+
+    if (velocity.current.lengthSq() > 1) {
+      velocity.current.normalize();
+    }
+
+    const speed = 7;
+
+    camera.position.addScaledVector(
+      velocity.current,
+      speed * Math.min(delta, 0.05)
+    );
+
+    camera.position.y = 1.7;
+
+    onPositionChange({
+      x: Math.round(camera.position.x),
+      z: Math.round(camera.position.z)
+    });
+  });
 
   useEffect(() => {
     const down = (event) => {
-      if (
-        ["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.code)
-      ) {
-        event.preventDefault();
-        keys.current[event.code] = true;
-      }
+      keys.current[event.code] = true;
     };
 
     const up = (event) => {
@@ -189,118 +233,136 @@ function PlayerController({
     };
   }, []);
 
-  useFrame(({ camera }, delta) => {
-    if (!enabled) return;
-
-    const forward = new THREE.Vector3();
-    const right = new THREE.Vector3();
-
-    camera.getWorldDirection(forward);
-    forward.y = 0;
-    forward.normalize();
-
-    right.crossVectors(forward, camera.up).normalize();
-
-    const movement = new THREE.Vector3(0, 0, 0);
-
-    if (keys.current.KeyW || keys.current.ArrowUp) {
-      movement.add(forward);
-    }
-
-    if (keys.current.KeyS || keys.current.ArrowDown) {
-      movement.sub(forward);
-    }
-
-    if (keys.current.KeyD || keys.current.ArrowRight) {
-      movement.sub(right);
-    }
-
-    if (keys.current.KeyA || keys.current.ArrowLeft) {
-      movement.add(right);
-    }
-
-    movement.x += mobileInput.x;
-    movement.z += mobileInput.y;
-
-    if (movement.lengthSq() > 0) {
-      movement.normalize();
-
-      camera.position.addScaledVector(
-        movement,
-        7 * Math.min(delta, 0.05)
-      );
-    }
-
-    camera.position.y = 1.7;
-
-    const current = {
-      x: Math.round(camera.position.x),
-      z: Math.round(camera.position.z)
-    };
-
-    if (
-      current.x !== lastPosition.current.x ||
-      current.z !== lastPosition.current.z
-    ) {
-      lastPosition.current = current;
-      onPositionChange(current);
-    }
-  });
-
   return null;
 }
 
-function MobileJoystick({ onMove }) {
-  const [active, setActive] = useState(false);
-  const [stick, setStick] = useState({ x: 0, y: 0 });
-  const origin = useRef(null);
+/* تحكم الكاميرا بالسحب على الهاتف */
+function CameraTouchControl({ cameraRef, active }) {
+  const touch = useRef(null);
 
-  const update = (event) => {
-    if (!origin.current) return;
+  const sensitivity = 0.004;
 
-    const dx = event.clientX - origin.current.x;
-    const dy = event.clientY - origin.current.y;
+  const handleDown = (event) => {
+    if (!active) return;
 
-    const distance = Math.min(45, Math.hypot(dx, dy));
-    const angle = Math.atan2(dy, dx);
+    touch.current = {
+      id: event.pointerId,
+      x: event.clientX,
+      y: event.clientY
+    };
 
-    const x = Math.cos(angle) * distance / 45;
-    const y = Math.sin(angle) * distance / 45;
-
-    setStick({ x, y });
-    onMove({ x, y });
+    event.currentTarget.setPointerCapture(event.pointerId);
   };
 
-  const stop = () => {
-    origin.current = null;
-    setActive(false);
-    setStick({ x: 0, y: 0 });
-    onMove({ x: 0, y: 0 });
+  const handleMove = (event) => {
+    if (!touch.current || !cameraRef.current) return;
+    if (touch.current.id !== event.pointerId) return;
+
+    const dx = event.clientX - touch.current.x;
+    const dy = event.clientY - touch.current.y;
+
+    touch.current.x = event.clientX;
+    touch.current.y = event.clientY;
+
+    const camera = cameraRef.current;
+
+    camera.rotation.order = "YXZ";
+
+    camera.rotation.y -= dx * sensitivity;
+    camera.rotation.x -= dy * sensitivity;
+
+    camera.rotation.x = THREE.MathUtils.clamp(
+      camera.rotation.x,
+      -Math.PI / 2 + 0.05,
+      Math.PI / 2 - 0.05
+    );
+  };
+
+  const handleUp = (event) => {
+    if (touch.current?.id === event.pointerId) {
+      touch.current = null;
+    }
+  };
+
+  if (!active) return null;
+
+  return (
+    <div
+      className="camera-touch-area"
+      onPointerDown={handleDown}
+      onPointerMove={handleMove}
+      onPointerUp={handleUp}
+      onPointerCancel={handleUp}
+    />
+  );
+}
+
+/* عصا التحكم */
+function MobileJoystick({ onChange }) {
+  const [knob, setKnob] = useState({ x: 0, y: 0 });
+  const activePointer = useRef(null);
+  const baseRef = useRef(null);
+
+  const updateJoystick = (event) => {
+    if (!baseRef.current) return;
+
+    const rect = baseRef.current.getBoundingClientRect();
+
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
+    const maxDistance = rect.width * 0.32;
+
+    let dx = event.clientX - centerX;
+    let dy = event.clientY - centerY;
+
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    if (distance > maxDistance) {
+      dx = (dx / distance) * maxDistance;
+      dy = (dy / distance) * maxDistance;
+    }
+
+    const x = dx / maxDistance;
+    const y = dy / maxDistance;
+
+    setKnob({ x: dx, y: dy });
+    onChange({ x, y });
+  };
+
+  const handleDown = (event) => {
+    activePointer.current = event.pointerId;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    updateJoystick(event);
+  };
+
+  const handleMove = (event) => {
+    if (activePointer.current !== event.pointerId) return;
+    updateJoystick(event);
+  };
+
+  const handleUp = (event) => {
+    if (activePointer.current !== event.pointerId) return;
+
+    activePointer.current = null;
+    setKnob({ x: 0, y: 0 });
+    onChange({ x: 0, y: 0 });
   };
 
   return (
     <div
+      ref={baseRef}
       className="mobile-joystick"
-      onPointerDown={(event) => {
-        event.currentTarget.setPointerCapture(event.pointerId);
-        origin.current = {
-          x: event.clientX,
-          y: event.clientY
-        };
-        setActive(true);
-        update(event);
-      }}
-      onPointerMove={(event) => {
-        if (active) update(event);
-      }}
-      onPointerUp={stop}
-      onPointerCancel={stop}
+      onPointerDown={handleDown}
+      onPointerMove={handleMove}
+      onPointerUp={handleUp}
+      onPointerCancel={handleUp}
     >
       <div className="joystick-base">
         <div
           className="joystick-knob"
           style={{
-            transform: `translate(${stick.x * 25}px, ${stick.y * 25}px)`
+            transform: `translate(${knob.x}px, ${knob.y}px)`
           }}
         />
       </div>
@@ -311,13 +373,18 @@ function MobileJoystick({ onMove }) {
 export default function Game() {
   const [position, setPosition] = useState({ x: 0, z: 8 });
   const [showHelp, setShowHelp] = useState(true);
-  const [started, setStarted] = useState(false);
-  const [mobileInput, setMobileInput] = useState({ x: 0, y: 0 });
+  const [mobile, setMobile] = useState(isMobileDevice);
+  const [joystick, setJoystick] = useState({ x: 0, y: 0 });
 
-  const isMobile = useMemo(
-    () => window.matchMedia("(pointer: coarse)").matches,
-    []
-  );
+  const cameraRef = useRef(null);
+
+  useEffect(() => {
+    const updateDevice = () => setMobile(isMobileDevice());
+
+    window.addEventListener("resize", updateDevice);
+
+    return () => window.removeEventListener("resize", updateDevice);
+  }, []);
 
   return (
     <div className="game-screen">
@@ -330,17 +397,33 @@ export default function Game() {
           far: 300
         }}
         dpr={[1, 1.5]}
+        onCreated={({ camera }) => {
+          cameraRef.current = camera;
+          camera.rotation.order = "YXZ";
+        }}
       >
         <World />
 
         <PlayerController
+          joystick={joystick}
           onPositionChange={setPosition}
-          mobileInput={mobileInput}
-          enabled={started}
         />
 
-        {!isMobile && started && <PointerLockControls />}
+        {!mobile && <PointerLockControls />}
       </Canvas>
+
+      {mobile && (
+        <>
+          <CameraTouchControl
+            cameraRef={cameraRef}
+            active={!showHelp}
+          />
+
+          {!showHelp && (
+            <MobileJoystick onChange={setJoystick} />
+          )}
+        </>
+      )}
 
       <div className="game-topbar">
         <div className="game-logo">THE EARTH</div>
@@ -357,33 +440,24 @@ export default function Game() {
       {showHelp && (
         <div className="game-help">
           <strong>مرحبًا بك في العالم</strong>
-          <p>أنت الآن في مرحلة التأسيس.</p>
-          <p>اضغط دخول العالم لبدء التجربة.</p>
 
-          {!isMobile && (
+          {mobile ? (
             <>
-              <p>W A S D للتحرك</p>
+              <p>استخدم العصا أسفل اليسار للتحرك.</p>
+              <p>اسحب إصبعك على الشاشة لتغيير اتجاه النظر.</p>
+            </>
+          ) : (
+            <>
+              <p>W A S D للتحرك.</p>
               <p>حرّك الماوس لتغيير اتجاه النظر.</p>
+              <p>اضغط على الشاشة لتفعيل التحكم بالماوس.</p>
             </>
           )}
 
-          {isMobile && (
-            <p>استخدم عصا التحكم للتحرك.</p>
-          )}
-
-          <button
-            onClick={() => {
-              setStarted(true);
-              setShowHelp(false);
-            }}
-          >
+          <button onClick={() => setShowHelp(false)}>
             دخول العالم
           </button>
         </div>
-      )}
-
-      {started && isMobile && (
-        <MobileJoystick onMove={setMobileInput} />
       )}
 
       <div className="game-bottom">
