@@ -7,67 +7,67 @@ import "./game.css";
 const CHUNK_SIZE = 80;
 const VIEW_DISTANCE = 2;
 const PLAYER_HEIGHT = 1.7;
-const PLAYER_RADIUS = 0.48;
+const PLAYER_RADIUS = 0.42;
 const MOVE_SPEED = 7;
-const LOOK_SENSITIVITY = 0.0035;
+const LOOK_SENSITIVITY = 0.004;
 
-const LAKE = { x: 35, z: -25, radius: 16 };
-const ROAD_WIDTH = 7;
+const ROAD_WIDTH = 9;
+const ROAD_CLEARANCE = 9;
+const TREE_CELL_SIZE = 15;
 
-function random2(x, z, seed = 0) {
-  const value = Math.sin(x * 127.1 + z * 311.7 + seed * 74.7) * 43758.5453;
+const LAKE = {
+  x: 35,
+  z: -25,
+  radius: 15,
+  shoreRadius: 19
+};
+
+function hash(a, b, seed = 0) {
+  const value = Math.sin(a * 127.1 + b * 311.7 + seed * 74.7) * 43758.5453;
   return value - Math.floor(value);
 }
 
-function distance2(x1, z1, x2, z2) {
-  return Math.hypot(x1 - x2, z1 - z2);
+function distanceToGridRoad(value) {
+  const nearest = Math.round(value / CHUNK_SIZE) * CHUNK_SIZE;
+  return Math.abs(value - nearest);
 }
 
-function isWater(x, z, margin = 0) {
-  return distance2(x, z, LAKE.x, LAKE.z) < LAKE.radius + margin;
-}
-
-function isRoad(x, z) {
-  const localX = ((x % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
-  const localZ = ((z % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
-
+function isRoad(x, z, extra = 0) {
   return (
-    localX < ROAD_WIDTH ||
-    localX > CHUNK_SIZE - ROAD_WIDTH ||
-    localZ < ROAD_WIDTH ||
-    localZ > CHUNK_SIZE - ROAD_WIDTH
+    distanceToGridRoad(x) < ROAD_WIDTH / 2 + extra ||
+    distanceToGridRoad(z) < ROAD_WIDTH / 2 + extra
   );
 }
 
-function terrainHeight(x, z) {
-  return (
-    Math.sin(x * 0.018) * 0.45 +
-    Math.cos(z * 0.021) * 0.35 +
-    Math.sin((x + z) * 0.012) * 0.25
-  );
+function isLakeArea(x, z) {
+  return Math.hypot(x - LAKE.x, z - LAKE.z) < LAKE.shoreRadius;
+}
+
+function isTownArea(x, z) {
+  return Math.abs(x) < 35 && Math.abs(z) < 35;
 }
 
 function Tree({ position, scale = 1, variant = 0 }) {
-  const colors = ["#174d32", "#205f3b", "#286d43", "#16452f"];
-  const leafColor = colors[variant % colors.length];
+  const crownColor = variant === 0 ? "#285b3c" : "#356b43";
+  const trunkColor = variant === 0 ? "#63462f" : "#73513a";
 
   return (
     <group position={position} scale={scale}>
-      <mesh position={[0, 1.15, 0]} castShadow>
-        <cylinderGeometry args={[0.12, 0.23, 2.3, 7]} />
-        <meshStandardMaterial color="#59402b" roughness={1} />
+      <mesh position={[0, 1.05, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[0.13, 0.21, 2.1, 9]} />
+        <meshStandardMaterial color={trunkColor} roughness={1} />
       </mesh>
 
-      <mesh position={[0, 2.45, 0]} castShadow>
-        <coneGeometry args={[1.05, 2.25, 8]} />
-        <meshStandardMaterial color={leafColor} roughness={0.95} />
+      <mesh position={[0, 2.25, 0]} castShadow>
+        <coneGeometry args={[1.05, 2.2, 9]} />
+        <meshStandardMaterial color={crownColor} roughness={0.96} />
       </mesh>
 
-      <mesh position={[0, 3.25, 0]} castShadow>
-        <coneGeometry args={[0.72, 1.8, 8]} />
+      <mesh position={[0, 3.1, 0]} castShadow>
+        <coneGeometry args={[0.72, 1.65, 9]} />
         <meshStandardMaterial
-          color={new THREE.Color(leafColor).multiplyScalar(1.2)}
-          roughness={0.95}
+          color={variant === 0 ? "#36794a" : "#477f50"}
+          roughness={0.96}
         />
       </mesh>
     </group>
@@ -82,99 +82,81 @@ function Building({ position, height, color }) {
         <meshStandardMaterial color={color} roughness={0.85} />
       </mesh>
 
-      {Array.from({ length: Math.max(1, Math.floor(height / 2)) }).map(
-        (_, i) => (
-          <mesh key={i} position={[2.51, 1.2 + i * 2, 0]}>
-            <boxGeometry args={[0.04, 0.8, 0.9]} />
-            <meshStandardMaterial
-              color="#9bcbd0"
-              emissive="#23434a"
-              emissiveIntensity={0.15}
-              roughness={0.3}
-            />
-          </mesh>
-        )
-      )}
+      {Array.from({ length: Math.floor(height / 2) }).map((_, i) => (
+        <mesh key={i} position={[2.51, 1.2 + i * 2, 0]}>
+          <boxGeometry args={[0.04, 0.8, 0.9]} />
+          <meshStandardMaterial
+            color="#8bb8bd"
+            roughness={0.35}
+            metalness={0.1}
+          />
+        </mesh>
+      ))}
     </group>
   );
 }
 
 /*
- * توزيع الأشجار:
- * - كل شجرة لها خلية مستقلة.
- * - يتم استخدام إحداثيات ثابتة حتى لا يتغير العالم عند إعادة التحميل.
- * - لا توضع الأشجار داخل المياه أو الطرق أو بالقرب من المباني.
- */
+  توزيع الأشجار على شبكة مكانية ثابتة.
+  كل خلية لها موقع عشوائي محسوب من إحداثياتها،
+  لذلك لا يتغير التوزيع عند إعادة تحميل المنطقة.
+*/
 function createChunk(cx, cz) {
   const objects = [];
-  const occupied = [];
 
-  const cellSize = 13;
-  const cells = Math.floor(CHUNK_SIZE / cellSize);
+  const startCellX = Math.floor((cx * CHUNK_SIZE) / TREE_CELL_SIZE) - 1;
+  const endCellX = Math.ceil(((cx + 1) * CHUNK_SIZE) / TREE_CELL_SIZE) + 1;
 
-  for (let gx = 0; gx < cells; gx++) {
-    for (let gz = 0; gz < cells; gz++) {
-      const seedX = cx * 1000 + gx;
-      const seedZ = cz * 1000 + gz;
+  const startCellZ = Math.floor((cz * CHUNK_SIZE) / TREE_CELL_SIZE) - 1;
+  const endCellZ = Math.ceil(((cz + 1) * CHUNK_SIZE) / TREE_CELL_SIZE) + 1;
 
+  for (let gx = startCellX; gx <= endCellX; gx++) {
+    for (let gz = startCellZ; gz <= endCellZ; gz++) {
       const x =
-        cx * CHUNK_SIZE +
-        gx * cellSize +
-        3 +
-        random2(seedX, seedZ, 1) * 7;
+        gx * TREE_CELL_SIZE +
+        2 +
+        hash(gx, gz, 1) * (TREE_CELL_SIZE - 4);
 
       const z =
-        cz * CHUNK_SIZE +
-        gz * cellSize +
-        3 +
-        random2(seedZ, seedX, 2) * 7;
+        gz * TREE_CELL_SIZE +
+        2 +
+        hash(gx, gz, 2) * (TREE_CELL_SIZE - 4);
 
-      if (isRoad(x, z)) continue;
-      if (isWater(x, z, 5)) continue;
+      const belongsToChunk =
+        Math.floor(x / CHUNK_SIZE) === cx &&
+        Math.floor(z / CHUNK_SIZE) === cz;
 
-      // منطقة المباني المركزية
-      if (Math.abs(x) < 25 && Math.abs(z) < 25) continue;
+      if (!belongsToChunk) continue;
 
-      // مجموعات نباتية طبيعية بدل توزيع متساوٍ بالكامل
-      const cluster = random2(
-        Math.floor(x / 35),
-        Math.floor(z / 35),
-        9
-      );
+      // الطرق ومداخلها مناطق خالية من الأشجار.
+      if (isRoad(x, z, ROAD_CLEARANCE)) continue;
 
-      const chance = random2(seedX, seedZ, 4);
+      // لا أشجار داخل البحيرة أو شاطئها.
+      if (isLakeArea(x, z)) continue;
 
-      if (cluster < 0.17 || chance < 0.38) continue;
+      // مساحة مفتوحة حول مركز المدينة والمباني.
+      if (isTownArea(x, z)) continue;
 
-      let tooClose = false;
-
-      for (const item of occupied) {
-        if (distance2(x, z, item.x, item.z) < 9) {
-          tooClose = true;
-          break;
-        }
-      }
-
-      if (tooClose) continue;
-
-      occupied.push({ x, z });
+      // بعض الخلايا تظل مساحات عشبية مفتوحة.
+      const density = hash(gx, gz, 5);
+      if (density < 0.27) continue;
 
       objects.push({
         type: "tree",
         x,
         z,
-        scale: 0.85 + random2(seedZ, seedX, 7) * 0.35,
-        variant: Math.floor(random2(seedX, seedZ, 8) * 4)
+        scale: 0.85 + hash(gx, gz, 3) * 0.28,
+        variant: hash(gx, gz, 4) > 0.5 ? 1 : 0
       });
     }
   }
 
   if (cx === 0 && cz === 0) {
     objects.push(
-      { type: "building", x: 18, z: 18, height: 8, color: "#b8aa91" },
-      { type: "building", x: -18, z: 18, height: 6, color: "#c9c0ad" },
-      { type: "building", x: 18, z: -18, height: 10, color: "#aebfc0" },
-      { type: "building", x: -18, z: -18, height: 7, color: "#c4b39f" }
+      { type: "building", x: 13, z: -13, height: 8, color: "#b8ad9b" },
+      { type: "building", x: -13, z: -13, height: 6, color: "#c9c0b1" },
+      { type: "building", x: 13, z: 13, height: 10, color: "#aab9b8" },
+      { type: "building", x: -13, z: 13, height: 7, color: "#b9aa98" }
     );
   }
 
@@ -188,17 +170,15 @@ function Chunk({ cx, cz, obstacles }) {
     const added = objects.map((object) => ({
       x: object.x,
       z: object.z,
-      radius: object.type === "tree" ? 0.75 * object.scale : 3.6,
+      radius: object.type === "tree" ? 0.75 * object.scale : 3.5,
       height: object.type === "tree" ? 4.5 * object.scale : object.height
     }));
 
     obstacles.current.push(...added);
 
     return () => {
-      const removeSet = new Set(added);
-      obstacles.current = obstacles.current.filter(
-        (item) => !removeSet.has(item)
-      );
+      const removed = new Set(added);
+      obstacles.current = obstacles.current.filter((item) => !removed.has(item));
     };
   }, [objects, obstacles]);
 
@@ -207,23 +187,15 @@ function Chunk({ cx, cz, obstacles }) {
       {objects.map((object, index) =>
         object.type === "tree" ? (
           <Tree
-            key={index}
-            position={[
-              object.x,
-              terrainHeight(object.x, object.z),
-              object.z
-            ]}
+            key={`${object.x}:${object.z}`}
+            position={[object.x, 0, object.z]}
             scale={object.scale}
             variant={object.variant}
           />
         ) : (
           <Building
-            key={index}
-            position={[
-              object.x,
-              terrainHeight(object.x, object.z),
-              object.z
-            ]}
+            key={`building-${index}`}
+            position={[object.x, 0, object.z]}
             height={object.height}
             color={object.color}
           />
@@ -233,92 +205,74 @@ function Chunk({ cx, cz, obstacles }) {
   );
 }
 
-function GroundChunk({ cx, cz }) {
-  const position = [cx * CHUNK_SIZE + CHUNK_SIZE / 2, -0.08, cz * CHUNK_SIZE + CHUNK_SIZE / 2];
+function Roads() {
+  const roads = useMemo(() => {
+    const result = [];
+
+    for (let i = -60; i <= 60; i++) {
+      const offset = i * CHUNK_SIZE;
+
+      result.push(
+        { x: offset, z: 0, width: ROAD_WIDTH, depth: 10000 },
+        { x: 0, z: offset, width: 10000, depth: ROAD_WIDTH }
+      );
+    }
+
+    return result;
+  }, []);
 
   return (
-    <mesh
-      position={position}
-      rotation={[-Math.PI / 2, 0, 0]}
-      receiveShadow
-    >
-      <planeGeometry args={[CHUNK_SIZE, CHUNK_SIZE, 16, 16]} />
-      <meshStandardMaterial
-        color="#527b4d"
-        roughness={1}
-        metalness={0}
-      />
-    </mesh>
+    <group>
+      {roads.map((road, index) => (
+        <mesh
+          key={index}
+          position={[road.x, 0.015, road.z]}
+          rotation={[-Math.PI / 2, 0, 0]}
+          receiveShadow
+        >
+          <planeGeometry args={[road.width, road.depth]} />
+          <meshStandardMaterial color="#343b3c" roughness={0.96} />
+        </mesh>
+      ))}
+    </group>
   );
 }
 
-function Water() {
-  const waterRef = useRef(null);
-
-  useFrame(({ clock }) => {
-    if (waterRef.current) {
-      waterRef.current.position.y =
-        -0.025 + Math.sin(clock.elapsedTime * 0.8) * 0.018;
-    }
-  });
-
+function Lake() {
   return (
     <group position={[LAKE.x, 0, LAKE.z]}>
-      {/* حافة الشاطئ */}
+      {/* الشاطئ */}
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
-        position={[0, -0.035, 0]}
+        position={[0, 0.005, 0]}
+        receiveShadow
       >
-        <circleGeometry args={[LAKE.radius + 2.2, 80]} />
+        <circleGeometry args={[LAKE.shoreRadius, 96]} />
         <meshStandardMaterial color="#b7a77e" roughness={1} />
       </mesh>
 
       {/* المياه */}
       <mesh
-        ref={waterRef}
         rotation={[-Math.PI / 2, 0, 0]}
-        position={[0, 0.02, 0]}
+        position={[0, 0.045, 0]}
       >
-        <circleGeometry args={[LAKE.radius, 80]} />
+        <circleGeometry args={[LAKE.radius, 96]} />
         <meshPhysicalMaterial
-          color="#146b83"
+          color="#07516b"
           roughness={0.2}
           metalness={0.12}
-          clearcoat={0.9}
-          clearcoatRoughness={0.12}
+          clearcoat={0.8}
+          clearcoatRoughness={0.2}
         />
       </mesh>
     </group>
   );
 }
 
-function Road({ cx, cz }) {
-  return (
-    <group position={[cx * CHUNK_SIZE, 0, cz * CHUNK_SIZE]}>
-      <mesh
-        rotation={[-Math.PI / 2, 0, 0]}
-        position={[CHUNK_SIZE / 2, -0.035, CHUNK_SIZE / 2]}
-      >
-        <planeGeometry args={[ROAD_WIDTH, CHUNK_SIZE]} />
-        <meshStandardMaterial color="#343b3b" roughness={0.95} />
-      </mesh>
-
-      <mesh
-        rotation={[-Math.PI / 2, 0, 0]}
-        position={[CHUNK_SIZE / 2, -0.034, CHUNK_SIZE / 2]}
-      >
-        <planeGeometry args={[CHUNK_SIZE, ROAD_WIDTH]} />
-        <meshStandardMaterial color="#343b3b" roughness={0.95} />
-      </mesh>
-    </group>
-  );
-}
-
 function World({ playerPosition, obstacles }) {
-  const centerX = Math.floor(playerPosition.x / CHUNK_SIZE);
-  const centerZ = Math.floor(playerPosition.z / CHUNK_SIZE);
-
   const chunks = useMemo(() => {
+    const centerX = Math.floor(playerPosition.x / CHUNK_SIZE);
+    const centerZ = Math.floor(playerPosition.z / CHUNK_SIZE);
     const result = [];
 
     for (let x = -VIEW_DISTANCE; x <= VIEW_DISTANCE; x++) {
@@ -331,39 +285,49 @@ function World({ playerPosition, obstacles }) {
     }
 
     return result;
-  }, [centerX, centerZ]);
+  }, [
+    Math.floor(playerPosition.x / CHUNK_SIZE),
+    Math.floor(playerPosition.z / CHUNK_SIZE)
+  ]);
 
   return (
     <>
-      <ambientLight intensity={0.62} />
+      <color attach="background" args={["#9eb6bd"]} />
+
+      <ambientLight intensity={0.65} />
 
       <directionalLight
-        position={[35, 60, 25]}
-        intensity={1.55}
+        position={[40, 65, 25]}
+        intensity={1.65}
         castShadow
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
       />
 
-      <hemisphereLight
-        skyColor="#c4e1ed"
-        groundColor="#43543b"
-        intensity={0.45}
-      />
+      <Sky distance={450000} sunPosition={[100, 35, 100]} />
 
-      <Sky distance={450000} sunPosition={[100, 35, 80]} />
+      <fog attach="fog" args={["#a9c2c5", 115, 310]} />
 
-      <fog attach="fog" args={["#b8d0d3", 130, 330]} />
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, -0.06, 0]}
+        receiveShadow
+      >
+        <planeGeometry args={[10000, 10000]} />
+        <meshStandardMaterial color="#52784c" roughness={1} />
+      </mesh>
+
+      <Roads />
+      <Lake />
 
       {chunks.map(({ cx, cz }) => (
-        <React.Fragment key={`${cx}:${cz}`}>
-          <GroundChunk cx={cx} cz={cz} />
-          <Road cx={cx} cz={cz} />
-          <Chunk cx={cx} cz={cz} obstacles={obstacles} />
-        </React.Fragment>
+        <Chunk
+          key={`${cx}:${cz}`}
+          cx={cx}
+          cz={cz}
+          obstacles={obstacles}
+        />
       ))}
-
-      <Water />
     </>
   );
 }
@@ -376,7 +340,6 @@ function PlayerController({
 }) {
   const keys = useRef({});
   const position = useRef(new THREE.Vector3(0, PLAYER_HEIGHT, 8));
-  const lastUpdate = useRef(0);
 
   useEffect(() => {
     const down = (event) => {
@@ -434,43 +397,46 @@ function PlayerController({
 
     const collides = (x, z) =>
       obstacles.current.some((obstacle) => {
-        return (
-          distance2(x, z, obstacle.x, obstacle.z) <
-          obstacle.radius + PLAYER_RADIUS
-        );
+        const dx = x - obstacle.x;
+        const dz = z - obstacle.z;
+        return Math.hypot(dx, dz) < obstacle.radius + PLAYER_RADIUS;
       });
 
-    // تصادم منفصل للمحورين حتى يستطيع اللاعب التحرك بمحاذاة العوائق
-    if (!collides(nextX, current.z) && !isWater(nextX, current.z, 0.8)) {
-      current.x = nextX;
+    if (!collides(nextX, current.z)) current.x = nextX;
+    if (!collides(current.x, nextZ)) current.z = nextZ;
+
+    // منع دخول البحيرة والشاطئ.
+    const lakeDistance = Math.hypot(
+      current.x - LAKE.x,
+      current.z - LAKE.z
+    );
+
+    if (lakeDistance < LAKE.shoreRadius + PLAYER_RADIUS) {
+      const angle = Math.atan2(
+        current.z - LAKE.z,
+        current.x - LAKE.x
+      );
+
+      current.x = LAKE.x + Math.cos(angle) * (LAKE.shoreRadius + PLAYER_RADIUS);
+      current.z = LAKE.z + Math.sin(angle) * (LAKE.shoreRadius + PLAYER_RADIUS);
     }
 
-    if (!collides(current.x, nextZ) && !isWater(current.x, nextZ, 0.8)) {
-      current.z = nextZ;
-    }
-
-    current.y = PLAYER_HEIGHT + terrainHeight(current.x, current.z);
+    current.y = PLAYER_HEIGHT;
 
     camera.position.copy(current);
     cameraRef.current = camera;
 
-    if (Date.now() - lastUpdate.current > 100) {
-      lastUpdate.current = Date.now();
-
-      onPositionChange({
-        x: Math.round(current.x),
-        z: Math.round(current.z)
-      });
-    }
+    onPositionChange({
+      x: Math.round(current.x),
+      z: Math.round(current.z)
+    });
   });
 
   return null;
 }
 
-function MobileCameraLook({ cameraRef, enabled }) {
+function MobileCameraLook({ cameraRef }) {
   const touch = useRef(null);
-
-  if (!enabled) return null;
 
   const down = (event) => {
     touch.current = {
@@ -505,9 +471,7 @@ function MobileCameraLook({ cameraRef, enabled }) {
   };
 
   const up = (event) => {
-    if (touch.current?.id === event.pointerId) {
-      touch.current = null;
-    }
+    if (touch.current?.id === event.pointerId) touch.current = null;
   };
 
   return (
@@ -527,8 +491,6 @@ function MobileJoystick({ onChange }) {
   const pointer = useRef(null);
 
   const update = (event) => {
-    if (!baseRef.current) return;
-
     const rect = baseRef.current.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
@@ -559,7 +521,6 @@ function MobileJoystick({ onChange }) {
 
   const up = (event) => {
     if (pointer.current !== event.pointerId) return;
-
     pointer.current = null;
     setKnob({ x: 0, y: 0 });
     onChange({ x: 0, y: 0 });
@@ -594,12 +555,11 @@ export default function Game() {
   const cameraRef = useRef(null);
 
   useEffect(() => {
-    const check = () => {
+    const check = () =>
       setMobile(
         window.matchMedia("(pointer: coarse)").matches ||
         window.innerWidth <= 900
       );
-    };
 
     check();
     window.addEventListener("resize", check);
@@ -613,12 +573,11 @@ export default function Game() {
         shadows
         camera={{
           position: [0, PLAYER_HEIGHT, 8],
-          fov: 75,
+          fov: 72,
           near: 0.1,
-          far: 500
+          far: 600
         }}
         dpr={[1, 1.5]}
-        gl={{ antialias: true, powerPreference: "high-performance" }}
       >
         <World playerPosition={position} obstacles={obstacles} />
 
@@ -632,69 +591,62 @@ export default function Game() {
         {!mobile && <PointerLockControls />}
       </Canvas>
 
+      {mobile && !showHelp && <MobileCameraLook cameraRef={cameraRef} />}
+
       {mobile && !showHelp && (
-        <>
-          <MobileCameraLook cameraRef={cameraRef} enabled />
-          <MobileJoystick onChange={setJoystick} />
-        </>
+        <MobileJoystick onChange={setJoystick} />
       )}
 
-      <header className="game-topbar">
-        <div className="brand-mark">
-          <span className="brand-symbol">E</span>
+      <header className="earth-hud">
+        <div className="earth-brand">
+          <span className="brand-mark">E</span>
           <div>
-            <div className="game-logo">THE EARTH</div>
+            <strong>THE EARTH</strong>
             <small>WORLD SYSTEM / 001</small>
           </div>
         </div>
 
-        <div className="game-coordinate-panel">
+        <div className="earth-location">
           <span>LOCAL POSITION</span>
-          <strong>{String(position.x).padStart(4, "0")} / {String(position.z).padStart(4, "0")}</strong>
+          <strong>{position.x} / {position.z}</strong>
         </div>
 
         <button
-          className="help-button"
+          className="earth-help-button"
           onClick={() => setShowHelp(!showHelp)}
-          aria-label="المساعدة"
+          aria-label="مساعدة"
         >
           ?
         </button>
       </header>
 
-      <div className="world-status">
+      <div className="earth-status">
         <span className="status-dot" />
-        <span>WORLD ONLINE</span>
-        <span className="status-divider">/</span>
+        <span>WORLD 001</span>
         <span>EXPLORATION</span>
       </div>
 
       {showHelp && (
-        <div className="game-help">
-          <div className="help-eyebrow">THE EARTH / FIRST ACCESS</div>
-          <strong>العالم مفتوح أمامك.</strong>
+        <div className="earth-intro">
+          <div className="intro-index">FIELD ACCESS / 001</div>
+          <h1>اكتشف العالم.</h1>
+          <p>
+            مساحة مفتوحة تنتظرك. تحرك بحرية واستكشف محيطك.
+          </p>
 
-          {mobile ? (
-            <>
-              <p>استخدم عصا الحركة للتنقل.</p>
-              <p>اسحب في الجهة اليمنى لتغيير اتجاه الكاميرا.</p>
-            </>
-          ) : (
-            <>
-              <p>W A S D للحركة.</p>
-              <p>حرّك الماوس للنظر حولك، واضغط ESC لتحرير المؤشر.</p>
-            </>
-          )}
+          <div className="intro-controls">
+            {mobile ? "العصا للحركة — اسحب الشاشة للنظر" : "W A S D للحركة — الماوس للنظر"}
+          </div>
 
           <button onClick={() => setShowHelp(false)}>
-            ابدأ الاستكشاف <span>↗</span>
+            دخول العالم <span>↗</span>
           </button>
         </div>
       )}
 
-      <footer className="game-bottom">
-        <span>THE EARTH — OPEN WORLD PROJECT</span>
-        <span>COORDINATES {position.x}, {position.z}</span>
+      <footer className="earth-footer">
+        <span>COORDINATES / {position.x}, {position.z}</span>
+        <span>THE EARTH — OPEN WORLD</span>
       </footer>
     </div>
   );
