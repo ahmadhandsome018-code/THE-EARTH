@@ -1,5 +1,3 @@
-@import url("https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap");
-
 * {
   box-sizing: border-box;
 }
@@ -10,9 +8,8 @@
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #10191b;
+  background: #111a1e;
   font-family: "Cairo", sans-serif;
-  color: #f2f0e8;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
@@ -25,326 +22,309 @@
   touch-action: none;
 }
 
-.game-topbar {
+.earth-hud {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  min-height: 82px;
-  padding: 15px 24px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
   z-index: 10;
-  color: #f5f3e9;
+  min-height: 100px;
+  padding: 22px 28px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  color: #f1f0e8;
   background: linear-gradient(
-    to bottom,
-    rgba(9, 17, 17, 0.9),
-    rgba(9, 17, 17, 0.25),
-    transparent
+    180deg,
+    rgba(12, 21, 24, 0.82),
+    rgba(12, 21, 24, 0)
   );
   pointer-events: none;
 }
 
-.brand-mark {
+.earth-brand {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-.brand-symbol {
-  width: 42px;
-  height: 42px;
+.brand-mark {
+  width: 38px;
+  height: 38px;
   display: grid;
   place-items: center;
-  border: 1px solid rgba(215, 198, 147, 0.8);
-  color: #d9c58e;
-  font-family: "Space Mono", monospace;
-  font-size: 24px;
-  transform: rotate(-8deg);
+  border: 1px solid rgba(117, 201, 174, 0.8);
+  color: #8bd6ba;
+  font-family: Arial, sans-serif;
+  font-size: 20px;
+  font-weight: 700;
 }
 
-.game-logo {
-  font-size: 19px;
-  font-weight: 800;
-  letter-spacing: 2px;
-  line-height: 1.1;
-}
-
-.brand-mark small {
+.earth-brand strong {
   display: block;
-  margin-top: 5px;
-  color: #c6c4b5;
-  font-family: "Space Mono", monospace;
-  font-size: 9px;
-  letter-spacing: 1.5px;
+  font-family: Arial, sans-serif;
+  font-size: 17px;
+  letter-spacing: 2px;
 }
 
-.game-coordinate-panel {
-  margin-inline-start: auto;
+.earth-brand small {
+  display: block;
+  margin-top: 4px;
+  color: rgba(241, 240, 232, 0.65);
+  font-family: Arial, sans-serif;
+  font-size: 9px;
+  letter-spacing: 1.7px;
+}
+
+.earth-location {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-  padding: 8px 14px;
-  border-right: 2px solid #c5b17a;
-  background: rgba(12, 24, 23, 0.35);
+  gap: 5px;
+  text-align: center;
+  font-family: Arial, sans-serif;
+}
+
+.earth-location span {
+  color: rgba(241, 240, 232, 0.6);
+  font-size: 10px;
+  letter-spacing: 1.7px;
+}
+
+.earth-location strong {
+  font-size: 15px;
+  letter-spacing: 1px;
   direction: ltr;
 }
 
-.game-coordinate-panel span {
-  color: #b9c8bd;
-  font-family: "Space Mono", monospace;
-  font-size: 9px;
-  letter-spacing: 1.5px;
-}
-
-.game-coordinate-panel strong {
-  color: #f2e5bb;
-  font-family: "Space Mono", monospace;
-  font-size: 13px;
-  font-weight: 400;
-}
-
-.help-button {
+.earth-help-button {
   pointer-events: auto;
-  width: 42px;
-  height: 42px;
-  border: 1px solid rgba(225, 215, 185, 0.55);
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
   border-radius: 50%;
-  color: #eee8d5;
-  background: rgba(15, 29, 27, 0.65);
-  font-family: "Space Mono", monospace;
+  color: #f1f0e8;
+  background: rgba(15, 25, 28, 0.55);
   font-size: 18px;
 }
 
-.world-status {
+.earth-status {
   position: absolute;
-  top: 94px;
-  left: 24px;
+  top: 108px;
+  left: 28px;
   z-index: 10;
   display: flex;
   align-items: center;
   gap: 9px;
-  color: rgba(247, 242, 222, 0.85);
-  font-family: "Space Mono", monospace;
+  color: rgba(245, 245, 236, 0.78);
+  font-family: Arial, sans-serif;
   font-size: 9px;
   letter-spacing: 1.5px;
   pointer-events: none;
 }
 
 .status-dot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: #8dc99c;
-  box-shadow: 0 0 12px rgba(141, 201, 156, 0.8);
+  background: #83c8a7;
+  box-shadow: 0 0 9px rgba(131, 200, 167, 0.6);
 }
 
-.status-divider {
-  color: #c6b17b;
-}
-
-.game-help {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: min(88%, 390px);
-  padding: 30px;
-  border: 1px solid rgba(210, 194, 145, 0.55);
-  background:
-    linear-gradient(145deg, rgba(28, 43, 38, 0.97), rgba(10, 23, 23, 0.97));
-  color: #f5f0df;
-  text-align: right;
-  z-index: 40;
-  direction: rtl;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
-}
-
-.help-eyebrow {
-  margin-bottom: 18px;
-  color: #d2bc80;
-  font-family: "Space Mono", monospace;
-  font-size: 9px;
-  letter-spacing: 1.4px;
-  direction: ltr;
-  text-align: left;
-}
-
-.game-help strong {
-  display: block;
-  margin-bottom: 15px;
-  font-size: 24px;
-  font-weight: 700;
-}
-
-.game-help p {
-  margin: 8px 0;
-  color: #c7d0c5;
-  font-size: 14px;
-  line-height: 1.9;
-}
-
-.game-help button {
-  width: 100%;
-  min-height: 50px;
-  margin-top: 20px;
-  padding: 8px 15px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border: 0;
-  color: #15251e;
-  background: #d4c18d;
-  font-family: "Cairo", sans-serif;
-  font-size: 15px;
-  font-weight: 800;
-}
-
-.game-help button span {
-  font-family: "Space Mono", monospace;
-  font-size: 20px;
-}
-
-.game-bottom {
+.earth-footer {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  min-height: 48px;
-  padding: 12px 22px;
+  z-index: 10;
+  min-height: 55px;
+  padding: 18px 28px;
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  z-index: 10;
-  color: rgba(239, 235, 215, 0.8);
+  gap: 12px;
+  color: rgba(245, 245, 236, 0.8);
   background: linear-gradient(
-    to top,
-    rgba(8, 17, 17, 0.82),
-    transparent
+    0deg,
+    rgba(12, 21, 24, 0.78),
+    rgba(12, 21, 24, 0)
   );
-  font-family: "Space Mono", monospace;
+  font-family: Arial, sans-serif;
   font-size: 9px;
-  letter-spacing: 1px;
+  letter-spacing: 1.5px;
   pointer-events: none;
-  direction: ltr;
 }
 
 .camera-touch-area {
   position: absolute;
-  top: 82px;
+  top: 110px;
   left: 0;
   right: 0;
-  bottom: 45px;
+  bottom: 65px;
   z-index: 5;
   touch-action: none;
-  pointer-events: auto;
 }
 
 .mobile-joystick {
   position: absolute;
-  left: 22px;
-  bottom: 62px;
-  width: 124px;
-  height: 124px;
+  left: 25px;
+  bottom: 82px;
+  width: 112px;
+  height: 112px;
   z-index: 20;
   display: flex;
   align-items: center;
   justify-content: center;
   touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
 }
 
 .joystick-base {
-  width: 112px;
-  height: 112px;
-  border: 1px solid rgba(235, 224, 191, 0.65);
-  border-radius: 50%;
+  width: 105px;
+  height: 105px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(13, 30, 27, 0.5);
-  box-shadow: inset 0 0 25px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(240, 245, 235, 0.65);
+  border-radius: 50%;
+  background: rgba(15, 27, 29, 0.3);
+  backdrop-filter: blur(3px);
 }
 
 .joystick-knob {
-  width: 46px;
-  height: 46px;
-  border: 2px solid rgba(255, 255, 255, 0.9);
+  width: 43px;
+  height: 43px;
+  border: 1px solid rgba(255, 255, 255, 0.9);
   border-radius: 50%;
-  background: #c9c7b8;
-  box-shadow: 0 3px 15px rgba(0, 0, 0, 0.3);
+  background: rgba(222, 231, 224, 0.82);
   pointer-events: none;
 }
 
+.earth-intro {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 40;
+  width: min(88%, 390px);
+  padding: 30px;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(222, 230, 218, 0.2);
+  color: #f2f0e8;
+  background: rgba(15, 25, 27, 0.93);
+  direction: rtl;
+  text-align: right;
+}
+
+.intro-index {
+  color: #8bd6ba;
+  font-family: Arial, sans-serif;
+  font-size: 10px;
+  letter-spacing: 2px;
+  direction: ltr;
+  text-align: left;
+}
+
+.earth-intro h1 {
+  margin: 22px 0 10px;
+  font-size: 29px;
+  font-weight: 700;
+}
+
+.earth-intro p {
+  margin: 0;
+  color: rgba(242, 240, 232, 0.72);
+  font-size: 14px;
+  line-height: 1.9;
+}
+
+.intro-controls {
+  margin-top: 22px;
+  padding-top: 15px;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  color: rgba(242, 240, 232, 0.58);
+  font-size: 11px;
+}
+
+.earth-intro button {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 22px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: none;
+  color: #10211c;
+  background: #8bd6ba;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.earth-intro button span {
+  font-size: 20px;
+}
+
 @media (max-width: 600px) {
-  .game-topbar {
-    min-height: 70px;
-    padding: 12px;
+  .earth-hud {
+    min-height: 90px;
+    padding: 17px 15px;
     gap: 8px;
   }
 
-  .brand-symbol {
-    width: 34px;
-    height: 34px;
-    font-size: 19px;
+  .earth-brand {
+    gap: 8px;
   }
 
-  .game-logo {
-    font-size: 15px;
+  .brand-mark {
+    width: 32px;
+    height: 32px;
+    font-size: 17px;
+  }
+
+  .earth-brand strong {
+    font-size: 13px;
     letter-spacing: 1px;
   }
 
-  .brand-mark small {
+  .earth-brand small {
     font-size: 7px;
+    letter-spacing: 1px;
   }
 
-  .game-coordinate-panel {
-    padding: 6px 8px;
-  }
-
-  .game-coordinate-panel span {
-    font-size: 7px;
-  }
-
-  .game-coordinate-panel strong {
-    font-size: 10px;
-  }
-
-  .help-button {
-    width: 36px;
-    height: 36px;
-  }
-
-  .world-status {
-    top: 78px;
-    left: 13px;
+  .earth-location span {
     font-size: 8px;
   }
 
-  .game-bottom {
-    padding: 10px 12px;
-    font-size: 7px;
+  .earth-location strong {
+    font-size: 12px;
+  }
+
+  .earth-help-button {
+    width: 34px;
+    height: 34px;
+  }
+
+  .earth-status {
+    top: 100px;
+    left: 16px;
+    font-size: 8px;
+  }
+
+  .earth-footer {
+    padding: 15px 16px;
+    font-size: 8px;
+    letter-spacing: 1px;
   }
 
   .mobile-joystick {
-    left: 12px;
-    bottom: 55px;
+    left: 15px;
+    bottom: 72px;
   }
 
-  .camera-touch-area {
-    top: 70px;
+  .earth-intro {
+    padding: 24px;
   }
 
-  .game-help {
-    padding: 23px;
-  }
-
-  .game-help strong {
-    font-size: 21px;
+  .earth-intro h1 {
+    font-size: 25px;
   }
 }
