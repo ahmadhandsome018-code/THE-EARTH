@@ -1,96 +1,215 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Sky, PointerLockControls } from "@react-three/drei";
 import * as THREE from "three";
 import "./game.css";
 
-const isMobileDevice = () =>
-  typeof window !== "undefined" &&
-  (window.matchMedia("(pointer: coarse)").matches ||
-    window.innerWidth <= 900);
+const CHUNK_SIZE = 80;
+const VIEW_DISTANCE = 2;
+const PLAYER_HEIGHT = 1.7;
+const PLAYER_RADIUS = 0.42;
+const MOVE_SPEED = 7;
+const LOOK_SENSITIVITY = 0.004;
+
+function seededRandom(x, z, seed = 0) {
+  const value = Math.sin(x * 127.1 + z * 311.7 + seed * 74.7) * 43758.5453;
+  return value - Math.floor(value);
+}
 
 function Tree({ position, scale = 1 }) {
   return (
     <group position={position} scale={scale}>
       <mesh position={[0, 1, 0]} castShadow>
-        <cylinderGeometry args={[0.16, 0.23, 2, 8]} />
+        <cylinderGeometry args={[0.16, 0.24, 2, 8]} />
         <meshStandardMaterial color="#60452d" />
       </mesh>
 
-      <mesh position={[0, 2.35, 0]} castShadow>
-        <coneGeometry args={[1.05, 2.4, 8]} />
-        <meshStandardMaterial color="#245c38" roughness={1} />
+      <mesh position={[0, 2.25, 0]} castShadow>
+        <coneGeometry args={[1.1, 2.3, 9]} />
+        <meshStandardMaterial color="#176b38" roughness={0.9} />
       </mesh>
 
       <mesh position={[0, 3.1, 0]} castShadow>
-        <coneGeometry args={[0.72, 1.8, 8]} />
-        <meshStandardMaterial color="#327447" roughness={1} />
+        <coneGeometry args={[0.75, 1.8, 9]} />
+        <meshStandardMaterial color="#25834a" roughness={0.9} />
       </mesh>
     </group>
   );
 }
 
-function Building({ position, color = "#c8b9a0", height = 5 }) {
+function Building({ position, height, color }) {
   return (
     <group position={position}>
       <mesh position={[0, height / 2, 0]} castShadow receiveShadow>
-        <boxGeometry args={[4, height, 4]} />
+        <boxGeometry args={[5, height, 5]} />
         <meshStandardMaterial color={color} roughness={0.85} />
       </mesh>
 
-      {Array.from({ length: Math.floor(height / 1.5) }).map((_, i) => (
-        <group key={i}>
-          <mesh position={[2.01, 1 + i * 1.5, 0.8]}>
-            <boxGeometry args={[0.04, 0.65, 0.65]} />
-            <meshStandardMaterial
-              color="#8ac8d8"
-              metalness={0.2}
-              roughness={0.25}
-            />
-          </mesh>
-
-          <mesh position={[2.01, 1 + i * 1.5, -0.8]}>
-            <boxGeometry args={[0.04, 0.65, 0.65]} />
-            <meshStandardMaterial
-              color="#8ac8d8"
-              metalness={0.2}
-              roughness={0.25}
-            />
-          </mesh>
-        </group>
+      {Array.from({ length: Math.floor(height / 2) }).map((_, i) => (
+        <mesh key={i} position={[2.51, 1.2 + i * 2, 0]}>
+          <boxGeometry args={[0.04, 0.8, 0.9]} />
+          <meshStandardMaterial
+            color="#8bd8e8"
+            roughness={0.2}
+            metalness={0.15}
+          />
+        </mesh>
       ))}
     </group>
   );
 }
 
-/* مواقع ثابتة للأشجار لتجنب إعادة توزيعها عند كل تحديث */
-const TREE_POSITIONS = [];
+/* إنشاء محتوى المناطق بطريقة ثابتة */
+function createChunk(cx, cz) {
+  const objects = [];
 
-for (let x = -42; x <= 42; x += 7) {
-  for (let z = -42; z <= 42; z += 7) {
-    const nearRoad = Math.abs(x) < 7 || Math.abs(z) < 7;
+  for (let i = 0; i < 22; i++) {
+    const seed = cx * 100 + cz * 200 + i;
+    const x = cx * CHUNK_SIZE + seededRandom(seed, i) * CHUNK_SIZE;
+    const z = cz * CHUNK_SIZE + seededRandom(i, seed, 3) * CHUNK_SIZE;
 
-    const value = Math.abs(
-      Math.sin(x * 12.9898 + z * 78.233) * 43758.5453
-    ) % 1;
+    const nearRoad =
+      Math.abs(x) % 80 < 9 ||
+      Math.abs(z) % 80 < 9;
 
-    if (!nearRoad && value > 0.35) {
-      TREE_POSITIONS.push({
-        position: [x, 0, z],
-        scale: 0.8 + (TREE_POSITIONS.length % 4) * 0.1
+    if (nearRoad) continue;
+
+    const chance = seededRandom(x, z, 8);
+
+    if (chance > 0.22) {
+      objects.push({
+        type: "tree",
+        x,
+        z,
+        scale: 0.8 + seededRandom(z, x, 2) * 0.5
       });
     }
   }
+
+  if (cx === 0 && cz === 0) {
+    objects.push(
+      { type: "building", x: 13, z: -13, height: 8, color: "#c5b79c" },
+      { type: "building", x: -13, z: -13, height: 6, color: "#d1c7b5" },
+      { type: "building", x: 13, z: 13, height: 10, color: "#b8c5c5" },
+      { type: "building", x: -13, z: 13, height: 7, color: "#c6b6a4" }
+    );
+  }
+
+  return objects;
 }
 
-function World() {
+function Chunk({ cx, cz, obstacles }) {
+  const objects = useMemo(() => createChunk(cx, cz), [cx, cz]);
+
+  useEffect(() => {
+    objects.forEach((object) => {
+      if (object.type === "tree") {
+        obstacles.current.push({
+          x: object.x,
+          z: object.z,
+          radius: 0.8 * object.scale,
+          height: 4.5 * object.scale
+        });
+      } else {
+        obstacles.current.push({
+          x: object.x,
+          z: object.z,
+          radius: 3.5,
+          height: object.height
+        });
+      }
+    });
+
+    return () => {
+      const positions = new Set(
+        objects.map((o) => `${o.x},${o.z}`)
+      );
+
+      obstacles.current = obstacles.current.filter(
+        (o) => !positions.has(`${o.x},${o.z}`)
+      );
+    };
+  }, [objects, obstacles]);
+
+  return (
+    <group>
+      {objects.map((object, index) =>
+        object.type === "tree" ? (
+          <Tree
+            key={index}
+            position={[object.x, 0, object.z]}
+            scale={object.scale}
+          />
+        ) : (
+          <Building
+            key={index}
+            position={[object.x, 0, object.z]}
+            height={object.height}
+            color={object.color}
+          />
+        )
+      )}
+    </group>
+  );
+}
+
+/* منطقة مياه تجريبية */
+function Water() {
+  const waterRef = useRef(null);
+
+  useFrame(({ clock }) => {
+    if (waterRef.current) {
+      waterRef.current.material.uniformsNeedUpdate = true;
+      waterRef.current.position.y = 0.08 + Math.sin(clock.elapsedTime * 1.2) * 0.025;
+    }
+  });
+
+  return (
+    <mesh
+      ref={waterRef}
+      position={[35, 0.08, -25]}
+      rotation={[-Math.PI / 2, 0, 0]}
+    >
+      <circleGeometry args={[13, 64]} />
+      <meshPhysicalMaterial
+        color="#087b9a"
+        roughness={0.16}
+        metalness={0.15}
+        clearcoat={0.8}
+        clearcoatRoughness={0.15}
+      />
+    </mesh>
+  );
+}
+
+function World({ playerPosition, obstacles }) {
+  const chunks = useMemo(() => {
+    const centerX = Math.floor(playerPosition.x / CHUNK_SIZE);
+    const centerZ = Math.floor(playerPosition.z / CHUNK_SIZE);
+    const result = [];
+
+    for (let x = -VIEW_DISTANCE; x <= VIEW_DISTANCE; x++) {
+      for (let z = -VIEW_DISTANCE; z <= VIEW_DISTANCE; z++) {
+        result.push({
+          cx: centerX + x,
+          cz: centerZ + z
+        });
+      }
+    }
+
+    return result;
+  }, [
+    Math.floor(playerPosition.x / CHUNK_SIZE),
+    Math.floor(playerPosition.z / CHUNK_SIZE)
+  ]);
+
   return (
     <>
-      <ambientLight intensity={0.65} />
+      <ambientLight intensity={0.7} />
 
       <directionalLight
-        position={[30, 40, 20]}
-        intensity={2}
+        position={[30, 50, 20]}
+        intensity={1.8}
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
@@ -99,115 +218,67 @@ function World() {
       <Sky
         distance={450000}
         sunPosition={[100, 30, 100]}
-        inclination={0.5}
-        azimuth={0.25}
       />
 
-      <fog attach="fog" args={["#b8d5d5", 45, 150]} />
+      <fog attach="fog" args={["#b8d5d5", 100, 260]} />
 
+      {/* أرض كبيرة قابلة للاستكشاف */}
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, -0.05, 0]}
         receiveShadow
-        position={[0, -0.03, 0]}
       >
-        <planeGeometry args={[300, 300]} />
+        <planeGeometry args={[10000, 10000]} />
         <meshStandardMaterial color="#547b4b" roughness={1} />
       </mesh>
 
-      {/* الطرق */}
-      <mesh
-        position={[0, 0.025, 0]}
-        rotation={[-Math.PI / 2, 0, 0]}
-      >
-        <planeGeometry args={[9, 300]} />
-        <meshStandardMaterial color="#343a3c" roughness={0.95} />
-      </mesh>
+      {/* شبكة الطرق */}
+      {Array.from({ length: 120 }, (_, i) => {
+        const offset = (i - 60) * CHUNK_SIZE;
 
-      <mesh
-        position={[0, 0.03, 0]}
-        rotation={[-Math.PI / 2, 0, 0]}
-      >
-        <planeGeometry args={[300, 9]} />
-        <meshStandardMaterial color="#343a3c" roughness={0.95} />
-      </mesh>
+        return (
+          <React.Fragment key={i}>
+            <mesh
+              position={[offset, 0.01, 0]}
+              rotation={[-Math.PI / 2, 0, 0]}
+            >
+              <planeGeometry args={[9, 10000]} />
+              <meshStandardMaterial color="#343a3c" roughness={0.95} />
+            </mesh>
 
-      {/* المباني */}
-      <Building position={[12, 0, -12]} height={8} color="#c5b79c" />
-      <Building position={[-13, 0, -13]} height={6} color="#d1c7b5" />
-      <Building position={[13, 0, 13]} height={10} color="#b8c5c5" />
-      <Building position={[-13, 0, 13]} height={7} color="#c6b6a4" />
+            <mesh
+              position={[0, 0.012, offset]}
+              rotation={[-Math.PI / 2, 0, 0]}
+            >
+              <planeGeometry args={[10000, 9]} />
+              <meshStandardMaterial color="#343a3c" roughness={0.95} />
+            </mesh>
+          </React.Fragment>
+        );
+      })}
 
-      {/* المياه */}
-      <mesh
-        position={[35, 0.08, -25]}
-        rotation={[-Math.PI / 2, 0, 0]}
-      >
-        <circleGeometry args={[13, 48]} />
-        <meshStandardMaterial
-          color="#087b9a"
-          roughness={0.25}
-          metalness={0.15}
-        />
-      </mesh>
+      <Water />
 
-      {/* الأشجار */}
-      {TREE_POSITIONS.map((tree, index) => (
-        <Tree
-          key={index}
-          position={tree.position}
-          scale={tree.scale}
+      {chunks.map(({ cx, cz }) => (
+        <Chunk
+          key={`${cx}:${cz}`}
+          cx={cx}
+          cz={cz}
+          obstacles={obstacles}
         />
       ))}
     </>
   );
 }
 
-/* التحكم في حركة اللاعب */
-function PlayerController({ joystick, onPositionChange }) {
+function PlayerController({
+  joystick,
+  onPositionChange,
+  obstacles,
+  cameraRef
+}) {
   const keys = useRef({});
-  const velocity = useRef(new THREE.Vector3());
-
-  useFrame(({ camera }, delta) => {
-    const forward = new THREE.Vector3();
-    const right = new THREE.Vector3();
-
-    camera.getWorldDirection(forward);
-    forward.y = 0;
-    forward.normalize();
-
-    right.set(-forward.z, 0, forward.x);
-
-    let forwardInput = -joystick.y;
-    let sideInput = joystick.x;
-
-    if (keys.current.KeyW || keys.current.ArrowUp) forwardInput += 1;
-    if (keys.current.KeyS || keys.current.ArrowDown) forwardInput -= 1;
-    if (keys.current.KeyD || keys.current.ArrowRight) sideInput += 1;
-    if (keys.current.KeyA || keys.current.ArrowLeft) sideInput -= 1;
-
-    velocity.current.set(0, 0, 0);
-
-    velocity.current.addScaledVector(forward, forwardInput);
-    velocity.current.addScaledVector(right, sideInput);
-
-    if (velocity.current.lengthSq() > 1) {
-      velocity.current.normalize();
-    }
-
-    const speed = 7;
-
-    camera.position.addScaledVector(
-      velocity.current,
-      speed * Math.min(delta, 0.05)
-    );
-
-    camera.position.y = 1.7;
-
-    onPositionChange({
-      x: Math.round(camera.position.x),
-      z: Math.round(camera.position.z)
-    });
-  });
+  const position = useRef(new THREE.Vector3(0, PLAYER_HEIGHT, 8));
 
   useEffect(() => {
     const down = (event) => {
@@ -233,18 +304,80 @@ function PlayerController({ joystick, onPositionChange }) {
     };
   }, []);
 
+  useFrame(({ camera }, delta) => {
+    const forward = new THREE.Vector3();
+    const right = new THREE.Vector3();
+
+    camera.getWorldDirection(forward);
+    forward.y = 0;
+    forward.normalize();
+
+    right.set(-forward.z, 0, forward.x);
+
+    let forwardInput = -joystick.y;
+    let sideInput = joystick.x;
+
+    if (keys.current.KeyW || keys.current.ArrowUp) forwardInput += 1;
+    if (keys.current.KeyS || keys.current.ArrowDown) forwardInput -= 1;
+    if (keys.current.KeyD || keys.current.ArrowRight) sideInput += 1;
+    if (keys.current.KeyA || keys.current.ArrowLeft) sideInput -= 1;
+
+    const movement = new THREE.Vector3()
+      .addScaledVector(forward, forwardInput)
+      .addScaledVector(right, sideInput);
+
+    if (movement.lengthSq() > 1) movement.normalize();
+
+    movement.multiplyScalar(MOVE_SPEED * Math.min(delta, 0.04));
+
+    const current = position.current;
+    const nextX = current.x + movement.x;
+    const nextZ = current.z + movement.z;
+
+    const collides = (x, z) =>
+      obstacles.current.some((obstacle) => {
+        const dx = x - obstacle.x;
+        const dz = z - obstacle.z;
+        const distance = Math.sqrt(dx * dx + dz * dz);
+
+        return distance < obstacle.radius + PLAYER_RADIUS;
+      });
+
+    /* منع دخول الأشجار والمباني */
+    if (!collides(nextX, current.z)) current.x = nextX;
+    if (!collides(current.x, nextZ)) current.z = nextZ;
+
+    /* منع دخول منطقة الماء التجريبية */
+    const waterDistance = Math.hypot(
+      current.x - 35,
+      current.z + 25
+    );
+
+    if (waterDistance < 13.5) {
+      current.x = camera.position.x;
+      current.z = camera.position.z;
+    }
+
+    current.y = PLAYER_HEIGHT;
+
+    camera.position.copy(current);
+    cameraRef.current = camera;
+
+    onPositionChange({
+      x: Math.round(current.x),
+      z: Math.round(current.z)
+    });
+  });
+
   return null;
 }
 
-/* تحكم الكاميرا بالسحب على الهاتف */
-function CameraTouchControl({ cameraRef, active }) {
+function MobileCameraLook({ cameraRef, enabled }) {
   const touch = useRef(null);
 
-  const sensitivity = 0.004;
+  if (!enabled) return null;
 
-  const handleDown = (event) => {
-    if (!active) return;
-
+  const down = (event) => {
     touch.current = {
       id: event.pointerId,
       x: event.clientX,
@@ -254,7 +387,7 @@ function CameraTouchControl({ cameraRef, active }) {
     event.currentTarget.setPointerCapture(event.pointerId);
   };
 
-  const handleMove = (event) => {
+  const move = (event) => {
     if (!touch.current || !cameraRef.current) return;
     if (touch.current.id !== event.pointerId) return;
 
@@ -265,86 +398,70 @@ function CameraTouchControl({ cameraRef, active }) {
     touch.current.y = event.clientY;
 
     const camera = cameraRef.current;
-
     camera.rotation.order = "YXZ";
 
-    camera.rotation.y -= dx * sensitivity;
-    camera.rotation.x -= dy * sensitivity;
+    camera.rotation.y -= dx * LOOK_SENSITIVITY;
+    camera.rotation.x -= dy * LOOK_SENSITIVITY;
 
     camera.rotation.x = THREE.MathUtils.clamp(
       camera.rotation.x,
-      -Math.PI / 2 + 0.05,
-      Math.PI / 2 - 0.05
+      -1.45,
+      1.45
     );
   };
 
-  const handleUp = (event) => {
-    if (touch.current?.id === event.pointerId) {
-      touch.current = null;
-    }
+  const up = (event) => {
+    if (touch.current?.id === event.pointerId) touch.current = null;
   };
-
-  if (!active) return null;
 
   return (
     <div
       className="camera-touch-area"
-      onPointerDown={handleDown}
-      onPointerMove={handleMove}
-      onPointerUp={handleUp}
-      onPointerCancel={handleUp}
+      onPointerDown={down}
+      onPointerMove={move}
+      onPointerUp={up}
+      onPointerCancel={up}
     />
   );
 }
 
-/* عصا التحكم */
 function MobileJoystick({ onChange }) {
   const [knob, setKnob] = useState({ x: 0, y: 0 });
-  const activePointer = useRef(null);
   const baseRef = useRef(null);
+  const pointer = useRef(null);
 
-  const updateJoystick = (event) => {
-    if (!baseRef.current) return;
-
+  const update = (event) => {
     const rect = baseRef.current.getBoundingClientRect();
-
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
-
-    const maxDistance = rect.width * 0.32;
+    const max = rect.width * 0.32;
 
     let dx = event.clientX - centerX;
     let dy = event.clientY - centerY;
+    const distance = Math.hypot(dx, dy);
 
-    const distance = Math.sqrt(dx * dx + dy * dy);
-
-    if (distance > maxDistance) {
-      dx = (dx / distance) * maxDistance;
-      dy = (dy / distance) * maxDistance;
+    if (distance > max) {
+      dx = dx / distance * max;
+      dy = dy / distance * max;
     }
 
-    const x = dx / maxDistance;
-    const y = dy / maxDistance;
-
     setKnob({ x: dx, y: dy });
-    onChange({ x, y });
+    onChange({ x: dx / max, y: dy / max });
   };
 
-  const handleDown = (event) => {
-    activePointer.current = event.pointerId;
+  const down = (event) => {
+    pointer.current = event.pointerId;
     event.currentTarget.setPointerCapture(event.pointerId);
-    updateJoystick(event);
+    update(event);
   };
 
-  const handleMove = (event) => {
-    if (activePointer.current !== event.pointerId) return;
-    updateJoystick(event);
+  const move = (event) => {
+    if (pointer.current === event.pointerId) update(event);
   };
 
-  const handleUp = (event) => {
-    if (activePointer.current !== event.pointerId) return;
-
-    activePointer.current = null;
+  const up = (event) => {
+    if (pointer.current !== event.pointerId) return;
+    pointer.current = null;
     setKnob({ x: 0, y: 0 });
     onChange({ x: 0, y: 0 });
   };
@@ -353,17 +470,15 @@ function MobileJoystick({ onChange }) {
     <div
       ref={baseRef}
       className="mobile-joystick"
-      onPointerDown={handleDown}
-      onPointerMove={handleMove}
-      onPointerUp={handleUp}
-      onPointerCancel={handleUp}
+      onPointerDown={down}
+      onPointerMove={move}
+      onPointerUp={up}
+      onPointerCancel={up}
     >
       <div className="joystick-base">
         <div
           className="joystick-knob"
-          style={{
-            transform: `translate(${knob.x}px, ${knob.y}px)`
-          }}
+          style={{ transform: `translate(${knob.x}px, ${knob.y}px)` }}
         />
       </div>
     </div>
@@ -372,18 +487,24 @@ function MobileJoystick({ onChange }) {
 
 export default function Game() {
   const [position, setPosition] = useState({ x: 0, z: 8 });
-  const [showHelp, setShowHelp] = useState(true);
-  const [mobile, setMobile] = useState(isMobileDevice);
   const [joystick, setJoystick] = useState({ x: 0, y: 0 });
+  const [showHelp, setShowHelp] = useState(true);
+  const [mobile, setMobile] = useState(false);
 
+  const obstacles = useRef([]);
   const cameraRef = useRef(null);
 
   useEffect(() => {
-    const updateDevice = () => setMobile(isMobileDevice());
+    const check = () =>
+      setMobile(
+        window.matchMedia("(pointer: coarse)").matches ||
+        window.innerWidth <= 900
+      );
 
-    window.addEventListener("resize", updateDevice);
+    check();
+    window.addEventListener("resize", check);
 
-    return () => window.removeEventListener("resize", updateDevice);
+    return () => window.removeEventListener("resize", check);
   }, []);
 
   return (
@@ -391,37 +512,29 @@ export default function Game() {
       <Canvas
         shadows
         camera={{
-          position: [0, 1.7, 8],
+          position: [0, PLAYER_HEIGHT, 8],
           fov: 75,
           near: 0.1,
-          far: 300
+          far: 500
         }}
         dpr={[1, 1.5]}
-        onCreated={({ camera }) => {
-          cameraRef.current = camera;
-          camera.rotation.order = "YXZ";
-        }}
       >
-        <World />
+        <World playerPosition={position} obstacles={obstacles} />
 
         <PlayerController
           joystick={joystick}
+          obstacles={obstacles}
+          cameraRef={cameraRef}
           onPositionChange={setPosition}
         />
 
         {!mobile && <PointerLockControls />}
       </Canvas>
 
-      {mobile && (
+      {mobile && !showHelp && (
         <>
-          <CameraTouchControl
-            cameraRef={cameraRef}
-            active={!showHelp}
-          />
-
-          {!showHelp && (
-            <MobileJoystick onChange={setJoystick} />
-          )}
+          <MobileCameraLook cameraRef={cameraRef} enabled />
+          <MobileJoystick onChange={setJoystick} />
         </>
       )}
 
@@ -432,25 +545,22 @@ export default function Game() {
           X: {position.x} | Z: {position.z}
         </div>
 
-        <button onClick={() => setShowHelp(!showHelp)}>
-          ?
-        </button>
+        <button onClick={() => setShowHelp(!showHelp)}>?</button>
       </div>
 
       {showHelp && (
         <div className="game-help">
-          <strong>مرحبًا بك في العالم</strong>
+          <strong>مرحبًا بك في THE EARTH</strong>
 
           {mobile ? (
             <>
-              <p>استخدم العصا أسفل اليسار للتحرك.</p>
-              <p>اسحب إصبعك على الشاشة لتغيير اتجاه النظر.</p>
+              <p>العصا أسفل اليسار للحركة.</p>
+              <p>اسحب إصبعك على يمين الشاشة لتغيير اتجاه النظر.</p>
             </>
           ) : (
             <>
-              <p>W A S D للتحرك.</p>
-              <p>حرّك الماوس لتغيير اتجاه النظر.</p>
-              <p>اضغط على الشاشة لتفعيل التحكم بالماوس.</p>
+              <p>W A S D للحركة.</p>
+              <p>استخدم الماوس للنظر حولك.</p>
             </>
           )}
 
