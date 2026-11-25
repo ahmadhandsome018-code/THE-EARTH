@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap");
+
 * {
   box-sizing: border-box;
 }
@@ -8,8 +10,9 @@
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #101820;
+  background: #10191b;
   font-family: "Cairo", sans-serif;
+  color: #f2f0e8;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
@@ -27,44 +30,120 @@
   top: 0;
   left: 0;
   right: 0;
-  min-height: 58px;
-  padding: 10px 18px;
+  min-height: 82px;
+  padding: 15px 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 16px;
   z-index: 10;
-  color: white;
+  color: #f5f3e9;
   background: linear-gradient(
     to bottom,
-    rgba(8, 15, 19, 0.8),
+    rgba(9, 17, 17, 0.9),
+    rgba(9, 17, 17, 0.25),
     transparent
   );
   pointer-events: none;
 }
 
-.game-topbar button {
-  pointer-events: auto;
-  width: 40px;
-  height: 40px;
-  border: 1px solid rgba(255,255,255,.4);
-  border-radius: 50%;
-  color: white;
-  background: rgba(20,35,40,.75);
-  font-size: 18px;
+.brand-mark {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-symbol {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(215, 198, 147, 0.8);
+  color: #d9c58e;
+  font-family: "Space Mono", monospace;
+  font-size: 24px;
+  transform: rotate(-8deg);
 }
 
 .game-logo {
   font-size: 19px;
   font-weight: 800;
-  letter-spacing: 1px;
+  letter-spacing: 2px;
+  line-height: 1.1;
 }
 
-.game-coordinates {
-  font-family: monospace;
-  font-size: 13px;
-  color: #e0eeee;
+.brand-mark small {
+  display: block;
+  margin-top: 5px;
+  color: #c6c4b5;
+  font-family: "Space Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+}
+
+.game-coordinate-panel {
+  margin-inline-start: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  padding: 8px 14px;
+  border-right: 2px solid #c5b17a;
+  background: rgba(12, 24, 23, 0.35);
   direction: ltr;
+}
+
+.game-coordinate-panel span {
+  color: #b9c8bd;
+  font-family: "Space Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+}
+
+.game-coordinate-panel strong {
+  color: #f2e5bb;
+  font-family: "Space Mono", monospace;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.help-button {
+  pointer-events: auto;
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(225, 215, 185, 0.55);
+  border-radius: 50%;
+  color: #eee8d5;
+  background: rgba(15, 29, 27, 0.65);
+  font-family: "Space Mono", monospace;
+  font-size: 18px;
+}
+
+.world-status {
+  position: absolute;
+  top: 94px;
+  left: 24px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: rgba(247, 242, 222, 0.85);
+  font-family: "Space Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  pointer-events: none;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #8dc99c;
+  box-shadow: 0 0 12px rgba(141, 201, 156, 0.8);
+}
+
+.status-divider {
+  color: #c6b17b;
 }
 
 .game-help {
@@ -72,40 +151,61 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: min(88%, 360px);
-  padding: 24px;
-  border: 1px solid rgba(255,255,255,.2);
-  border-radius: 18px;
-  background: rgba(12,24,29,.94);
-  color: white;
-  text-align: center;
+  width: min(88%, 390px);
+  padding: 30px;
+  border: 1px solid rgba(210, 194, 145, 0.55);
+  background:
+    linear-gradient(145deg, rgba(28, 43, 38, 0.97), rgba(10, 23, 23, 0.97));
+  color: #f5f0df;
+  text-align: right;
   z-index: 40;
   direction: rtl;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+}
+
+.help-eyebrow {
+  margin-bottom: 18px;
+  color: #d2bc80;
+  font-family: "Space Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 1.4px;
+  direction: ltr;
+  text-align: left;
 }
 
 .game-help strong {
   display: block;
   margin-bottom: 15px;
-  font-size: 21px;
+  font-size: 24px;
+  font-weight: 700;
 }
 
 .game-help p {
-  color: #d5e2df;
+  margin: 8px 0;
+  color: #c7d0c5;
   font-size: 14px;
-  line-height: 1.8;
+  line-height: 1.9;
 }
 
 .game-help button {
   width: 100%;
-  min-height: 46px;
-  margin-top: 15px;
-  border: none;
-  border-radius: 10px;
-  color: #10221b;
-  background: #65d5b8;
-  font-family: inherit;
-  font-size: 16px;
+  min-height: 50px;
+  margin-top: 20px;
+  padding: 8px 15px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 0;
+  color: #15251e;
+  background: #d4c18d;
+  font-family: "Cairo", sans-serif;
+  font-size: 15px;
   font-weight: 800;
+}
+
+.game-help button span {
+  font-family: "Space Mono", monospace;
+  font-size: 20px;
 }
 
 .game-bottom {
@@ -113,29 +213,29 @@
   left: 0;
   right: 0;
   bottom: 0;
-  min-height: 42px;
-  padding: 10px 16px;
+  min-height: 48px;
+  padding: 12px 22px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 10px;
   z-index: 10;
-  color: rgba(255,255,255,.85);
+  color: rgba(239, 235, 215, 0.8);
   background: linear-gradient(
     to top,
-    rgba(8,15,19,.75),
+    rgba(8, 17, 17, 0.82),
     transparent
   );
-  font-family: monospace;
-  font-size: 10px;
+  font-family: "Space Mono", monospace;
+  font-size: 9px;
   letter-spacing: 1px;
   pointer-events: none;
+  direction: ltr;
 }
 
-/* منطقة النظر باللمس */
 .camera-touch-area {
   position: absolute;
-  top: 60px;
+  top: 82px;
   left: 0;
   right: 0;
   bottom: 45px;
@@ -144,13 +244,12 @@
   pointer-events: auto;
 }
 
-/* عصا الحركة */
 .mobile-joystick {
   position: absolute;
-  left: 24px;
-  bottom: 65px;
-  width: 120px;
-  height: 120px;
+  left: 22px;
+  bottom: 62px;
+  width: 124px;
+  height: 124px;
   z-index: 20;
   display: flex;
   align-items: center;
@@ -161,40 +260,91 @@
 }
 
 .joystick-base {
-  width: 110px;
-  height: 110px;
-  border: 2px solid rgba(255,255,255,.55);
+  width: 112px;
+  height: 112px;
+  border: 1px solid rgba(235, 224, 191, 0.65);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(20,30,35,.48);
+  background: rgba(13, 30, 27, 0.5);
+  box-shadow: inset 0 0 25px rgba(0, 0, 0, 0.25);
 }
 
 .joystick-knob {
-  width: 48px;
-  height: 48px;
-  border: 2px solid white;
+  width: 46px;
+  height: 46px;
+  border: 2px solid rgba(255, 255, 255, 0.9);
   border-radius: 50%;
-  background: rgba(225,235,235,.85);
+  background: #c9c7b8;
+  box-shadow: 0 3px 15px rgba(0, 0, 0, 0.3);
   pointer-events: none;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 600px) {
   .game-topbar {
-    padding: 8px 12px;
+    min-height: 70px;
+    padding: 12px;
+    gap: 8px;
+  }
+
+  .brand-symbol {
+    width: 34px;
+    height: 34px;
+    font-size: 19px;
   }
 
   .game-logo {
-    font-size: 16px;
+    font-size: 15px;
+    letter-spacing: 1px;
   }
 
-  .game-coordinates {
-    font-size: 11px;
+  .brand-mark small {
+    font-size: 7px;
+  }
+
+  .game-coordinate-panel {
+    padding: 6px 8px;
+  }
+
+  .game-coordinate-panel span {
+    font-size: 7px;
+  }
+
+  .game-coordinate-panel strong {
+    font-size: 10px;
+  }
+
+  .help-button {
+    width: 36px;
+    height: 36px;
+  }
+
+  .world-status {
+    top: 78px;
+    left: 13px;
+    font-size: 8px;
+  }
+
+  .game-bottom {
+    padding: 10px 12px;
+    font-size: 7px;
   }
 
   .mobile-joystick {
-    left: 18px;
-    bottom: 58px;
+    left: 12px;
+    bottom: 55px;
+  }
+
+  .camera-touch-area {
+    top: 70px;
+  }
+
+  .game-help {
+    padding: 23px;
+  }
+
+  .game-help strong {
+    font-size: 21px;
   }
 }
