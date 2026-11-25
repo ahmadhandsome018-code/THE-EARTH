@@ -260,3 +260,14 @@
     bottom: 48px;
   }
 }
+.camera-touch-area {
+  position: absolute;
+  inset: 60px 0 45px 0;
+  z-index: 5;
+  touch-action: none;
+  pointer-events: auto;
+}
+
+.mobile-joystick {
+  z-index: 20;
+}
