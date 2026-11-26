@@ -204,7 +204,9 @@ function Trees({ objects }) {
       !trunks.current ||
       !leavesA.current ||
       !leavesB.current
-    ) return;
+    ) {
+      return;
+    }
 
     const dummy = new THREE.Object3D();
 
@@ -231,11 +233,9 @@ function Trees({ objects }) {
     leavesA.current.instanceMatrix.needsUpdate = true;
     leavesB.current.instanceMatrix.needsUpdate = true;
 
-    // إعادة حساب حدود المجسمات بعد توزيع الأشجار
     trunks.current.computeBoundingSphere();
     leavesA.current.computeBoundingSphere();
     leavesB.current.computeBoundingSphere();
-
   }, [treeObjects]);
 
   if (treeObjects.length === 0) return null;
@@ -272,10 +272,15 @@ function Trees({ objects }) {
   );
 }
 
+/* المباني */
 function Building({ position, height, color }) {
   return (
     <group position={position}>
-      <mesh position={[0, height / 2, 0]} castShadow>
+      <mesh
+        position={[0, height / 2, 0]}
+        castShadow
+        frustumCulled={false}
+      >
         <boxGeometry args={[5, height, 5]} />
         <meshStandardMaterial color={color} roughness={0.88} />
       </mesh>
@@ -285,6 +290,7 @@ function Building({ position, height, color }) {
       }).map((_, index) => (
         <mesh
           key={index}
+          frustumCulled={false}
           position={[2.51, 1.2 + index * 2, 0]}
         >
           <boxGeometry args={[0.04, 0.8, 0.9]} />
@@ -295,7 +301,7 @@ function Building({ position, height, color }) {
   );
 }
 
-/* طرق ثابتة داخل إحداثيات كل Chunk */
+/* الطرق */
 function ChunkRoads({ cx, cz }) {
   const minX = cx * CHUNK_SIZE;
   const maxX = minX + CHUNK_SIZE;
@@ -393,18 +399,24 @@ function Chunk({ cx, cz }) {
   );
 }
 
+/* البحيرة */
 function Water() {
   return (
     <group position={[WATER.x, 0, WATER.z]}>
       <mesh
+        frustumCulled={false}
         rotation={[-Math.PI / 2, 0, 0]}
         position={[0, 0.015, 0]}
       >
         <circleGeometry args={[WATER.shoreRadius, 48]} />
-        <meshStandardMaterial color="#b7a77e" roughness={1} />
+        <meshStandardMaterial
+          color="#b7a77e"
+          roughness={1}
+        />
       </mesh>
 
       <mesh
+        frustumCulled={false}
         rotation={[-Math.PI / 2, 0, 0]}
         position={[0, 0.04, 0]}
       >
@@ -421,6 +433,7 @@ function Water() {
   );
 }
 
+/* العالم */
 function World({ center }) {
   const chunks = useMemo(() => {
     const result = [];
@@ -456,29 +469,38 @@ function World({ center }) {
         sunPosition={[100, 35, 100]}
       />
 
-      {/* تقليل اختفاء العناصر بسبب الضباب */}
       <fog
         attach="fog"
         args={["#a9c2c7", 500, 1200]}
       />
 
+      {/* الأرض */}
       <mesh
+        frustumCulled={false}
         rotation={[-Math.PI / 2, 0, 0]}
         position={[0, -0.06, 0]}
       >
         <planeGeometry args={[100000, 100000]} />
-        <meshStandardMaterial color="#52734a" roughness={1} />
+        <meshStandardMaterial
+          color="#52734a"
+          roughness={1}
+        />
       </mesh>
 
       <Water />
 
       {chunks.map(({ cx, cz }) => (
-        <Chunk key={`${cx}:${cz}`} cx={cx} cz={cz} />
+        <Chunk
+          key={`${cx}:${cz}`}
+          cx={cx}
+          cz={cz}
+        />
       ))}
     </>
   );
 }
 
+/* التحكم في اللاعب */
 function PlayerController({
   joystick,
   onChunkChange,
@@ -622,6 +644,7 @@ function PlayerController({
   return null;
 }
 
+/* تحريك الكاميرا باللمس */
 function MobileCameraLook({ cameraRef }) {
   const touch = useRef(null);
 
@@ -675,6 +698,7 @@ function MobileCameraLook({ cameraRef }) {
   );
 }
 
+/* عصا التحكم */
 function MobileJoystick({ onChange }) {
   const [knob, setKnob] = useState({ x: 0, y: 0 });
 
@@ -744,6 +768,7 @@ function MobileJoystick({ onChange }) {
   );
 }
 
+/* اللعبة */
 export default function Game() {
   const [center, setCenter] = useState({
     x: 0,
