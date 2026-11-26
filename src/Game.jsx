@@ -141,29 +141,30 @@ function getChunkObjects(cx, cz) {
 function getNearbyObstacles(x, z) {
   const result = [];
 
-  const minX = Math.floor((x - 5) / CHUNK_SIZE);
-  const maxX = Math.floor((x + 5) / CHUNK_SIZE);
-  const minZ = Math.floor((z - 5) / CHUNK_SIZE);
-  const maxZ = Math.floor((z + 5) / CHUNK_SIZE);
+  const minX = Math.floor((x - 8) / CHUNK_SIZE);
+  const maxX = Math.floor((x + 8) / CHUNK_SIZE);
+  const minZ = Math.floor((z - 8) / CHUNK_SIZE);
+  const maxZ = Math.floor((z + 8) / CHUNK_SIZE);
 
   for (let cx = minX; cx <= maxX; cx++) {
     for (let cz = minZ; cz <= maxZ; cz++) {
       const objects = getChunkObjects(cx, cz);
 
       for (const object of objects) {
-        const radius =
-          object.type === "tree"
-            ? 0.85 * object.scale
-            : 3.5;
-
-        if (
-          Math.abs(object.x - x) < radius + 5 &&
-          Math.abs(object.z - z) < radius + 5
-        ) {
+        if (object.type === "building") {
           result.push({
+            type: "building",
             x: object.x,
             z: object.z,
-            radius
+            halfWidth: 2.5,
+            halfDepth: 2.5
+          });
+        } else if (object.type === "tree") {
+          result.push({
+            type: "tree",
+            x: object.x,
+            z: object.z,
+            radius: 0.85 * object.scale
           });
         }
       }
@@ -177,14 +178,40 @@ function collidesWithNearby(x, z) {
   const obstacles = getNearbyObstacles(x, z);
 
   for (const obstacle of obstacles) {
-    const dx = x - obstacle.x;
-    const dz = z - obstacle.z;
+    if (obstacle.type === "building") {
+      const closestX = THREE.MathUtils.clamp(
+        x,
+        obstacle.x - obstacle.halfWidth,
+        obstacle.x + obstacle.halfWidth
+      );
 
-    if (
-      dx * dx + dz * dz <
-      (obstacle.radius + PLAYER_RADIUS) ** 2
-    ) {
-      return true;
+      const closestZ = THREE.MathUtils.clamp(
+        z,
+        obstacle.z - obstacle.halfDepth,
+        obstacle.z + obstacle.halfDepth
+      );
+
+      const dx = x - closestX;
+      const dz = z - closestZ;
+
+      if (
+        dx * dx + dz * dz <
+        PLAYER_RADIUS * PLAYER_RADIUS
+      ) {
+        return true;
+      }
+    }
+
+    if (obstacle.type === "tree") {
+      const dx = x - obstacle.x;
+      const dz = z - obstacle.z;
+
+      if (
+        dx * dx + dz * dz <
+        (obstacle.radius + PLAYER_RADIUS) ** 2
+      ) {
+        return true;
+      }
     }
   }
 
