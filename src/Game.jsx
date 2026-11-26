@@ -1346,3 +1346,198 @@ function MobileJoystick({ onChange }) {
   const [knob, setKnob] = useState({
     x: 0,
     y: 0
+  });
+
+  const baseRef = useRef(null);
+  const pointer = useRef(null);
+
+  const update = (event) => {
+    if (!baseRef.current) return;
+
+    const rect =
+      baseRef.current.getBoundingClientRect();
+
+    const max = rect.width * 0.32;
+
+    let dx =
+      event.clientX -
+      (rect.left + rect.width / 2);
+
+    let dy =
+      event.clientY -
+      (rect.top + rect.height / 2);
+
+    const length = Math.hypot(dx, dy);
+
+    if (length > max) {
+      dx = (dx / length) * max;
+      dy = (dy / length) * max;
+    }
+
+    setKnob({ x: dx, y: dy });
+
+    onChange({
+      x: dx / max,
+      y: dy / max
+    });
+  };
+
+  const down = (event) => {
+    pointer.current = event.pointerId;
+
+    event.currentTarget.setPointerCapture(
+      event.pointerId
+    );
+
+    update(event);
+  };
+
+  const move = (event) => {
+    if (pointer.current === event.pointerId) {
+      update(event);
+    }
+  };
+
+  const up = (event) => {
+    if (pointer.current !== event.pointerId) {
+      return;
+    }
+
+    pointer.current = null;
+
+    setKnob({ x: 0, y: 0 });
+
+    onChange({ x: 0, y: 0 });
+  };
+
+  return (
+    <div
+      ref={baseRef}
+      className="mobile-joystick"
+      onPointerDown={down}
+      onPointerMove={move}
+      onPointerUp={up}
+      onPointerCancel={up}
+    >
+      <div className="joystick-base">
+        <div
+          className="joystick-knob"
+          style={{
+            transform: `translate(${knob.x}px, ${knob.y}px)`
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+export default function Game() {
+  const [center, setCenter] = useState({
+    x: 0,
+    z: 0
+  });
+
+  const [joystick, setJoystick] = useState({
+    x: 0,
+    y: 0
+  });
+
+  const [mobile, setMobile] = useState(false);
+
+  const cameraRef = useRef(null);
+  const jumpRequest = useRef(false);
+
+  const lastChunk = useRef({
+    x: 0,
+    z: 0
+  });
+
+  useEffect(() => {
+    const check = () => {
+      setMobile(
+        window.matchMedia("(pointer: coarse)").matches ||
+        window.innerWidth <= 900
+      );
+    };
+
+    check();
+
+    window.addEventListener("resize", check);
+
+    return () => {
+      window.removeEventListener("resize", check);
+    };
+  }, []);
+
+  const handleChunkChange = (x, z) => {
+    if (
+      x === lastChunk.current.x &&
+      z === lastChunk.current.z
+    ) {
+      return;
+    }
+
+    lastChunk.current = { x, z };
+    setCenter({ x, z });
+  };
+
+  return (
+    <div className="game-screen">
+      <Canvas
+        shadows
+        camera={{
+          position: [0, PLAYER_HEIGHT, 14],
+          fov: 70,
+          near: 0.1,
+          far: 650
+        }}
+        dpr={[1, 1.25]}
+        gl={{
+          antialias: false,
+          powerPreference: "high-performance"
+        }}
+      >
+        <World center={center} />
+
+        <PlayerController
+          joystick={joystick}
+          cameraRef={cameraRef}
+          onChunkChange={handleChunkChange}
+          jumpRequest={jumpRequest}
+        />
+
+        {!mobile && <PointerLockControls />}
+      </Canvas>
+
+      {mobile && (
+        <>
+          <MobileCameraLook
+            cameraRef={cameraRef}
+          />
+
+          <MobileJoystick
+            onChange={setJoystick}
+          />
+
+          <button
+            className="jump-button"
+            type="button"
+            onClick={() => {
+              jumpRequest.current = true;
+            }}
+            aria-label="Jump"
+          >
+            <span className="jump-arrow">↑</span>
+            <span className="jump-label">قفز</span>
+          </button>
+        </>
+      )}
+
+      {!mobile && (
+        <div className="desktop-hint">
+          W A S D للحركة · Shift للجري · Space للقفز · حرّك الماوس للنظر
+        </div>
+      )}
+    </div>
+  );
+}
