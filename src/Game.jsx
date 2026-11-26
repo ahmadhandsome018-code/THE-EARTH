@@ -68,6 +68,7 @@ function isSpawnArea(x, z) {
   return Math.abs(x) < 20 && Math.abs(z) < 20;
 }
 
+/* إنشاء بيانات الطبيعة لكل Chunk */
 function createChunk(cx, cz) {
   const objects = [];
   const columns = Math.ceil(CHUNK_SIZE / 12);
@@ -136,6 +137,7 @@ function getChunkObjects(cx, cz) {
   return chunkCache.get(key);
 }
 
+/* بيانات التصادم */
 function getNearbyObstacles(x, z) {
   const result = [];
 
@@ -189,7 +191,7 @@ function collidesWithNearby(x, z) {
   return false;
 }
 
-/* الأشجار: نظام مستقل لكل Chunk */
+/* الأشجار */
 function Trees({ objects }) {
   const trunks = useRef(null);
   const leavesA = useRef(null);
@@ -273,7 +275,45 @@ function Trees({ objects }) {
   );
 }
 
-/* المباني: مستقلة عن تحميل الأشجار */
+function NatureChunk({ cx, cz }) {
+  const objects = useMemo(
+    () => getChunkObjects(cx, cz),
+    [cx, cz]
+  );
+
+  return <Trees objects={objects} />;
+}
+
+function NatureWorld({ center }) {
+  const chunks = useMemo(() => {
+    const result = [];
+
+    for (let x = -VIEW_DISTANCE; x <= VIEW_DISTANCE; x++) {
+      for (let z = -VIEW_DISTANCE; z <= VIEW_DISTANCE; z++) {
+        result.push({
+          cx: center.x + x,
+          cz: center.z + z
+        });
+      }
+    }
+
+    return result;
+  }, [center]);
+
+  return (
+    <>
+      {chunks.map(({ cx, cz }) => (
+        <NatureChunk
+          key={`${cx}:${cz}`}
+          cx={cx}
+          cz={cz}
+        />
+      ))}
+    </>
+  );
+}
+
+/* المباني */
 const BUILDINGS = [
   { x: 15, z: -15, height: 8, color: "#b9b4a6" },
   { x: -15, z: -15, height: 6, color: "#c6c0b1" },
@@ -290,7 +330,10 @@ function Building({ position, height, color }) {
         frustumCulled={false}
       >
         <boxGeometry args={[5, height, 5]} />
-        <meshStandardMaterial color={color} roughness={0.88} />
+        <meshStandardMaterial
+          color={color}
+          roughness={0.88}
+        />
       </mesh>
 
       {Array.from({
@@ -302,7 +345,10 @@ function Building({ position, height, color }) {
           position={[2.51, 1.2 + index * 2, 0]}
         >
           <boxGeometry args={[0.04, 0.8, 0.9]} />
-          <meshStandardMaterial color="#91bdc1" roughness={0.3} />
+          <meshStandardMaterial
+            color="#91bdc1"
+            roughness={0.3}
+          />
         </mesh>
       ))}
     </group>
@@ -324,7 +370,7 @@ function BuildingSystem() {
   );
 }
 
-/* شبكة الطرق: مستقلة عن مكوّن Chunk */
+/* الطرق */
 function RoadTile({ cx, cz }) {
   const minX = cx * CHUNK_SIZE;
   const minZ = cz * CHUNK_SIZE;
@@ -354,10 +400,16 @@ function RoadTile({ cx, cz }) {
       {verticalRoads.map((x) => (
         <mesh
           key={`v-${x}`}
-          position={[x, ROAD_HEIGHT / 2, minZ + CHUNK_SIZE / 2]}
+          position={[
+            x,
+            ROAD_HEIGHT / 2,
+            minZ + CHUNK_SIZE / 2
+          ]}
           frustumCulled={false}
         >
-          <boxGeometry args={[ROAD_WIDTH, ROAD_HEIGHT, CHUNK_SIZE]} />
+          <boxGeometry
+            args={[ROAD_WIDTH, ROAD_HEIGHT, CHUNK_SIZE]}
+          />
           <meshStandardMaterial
             color="#353a39"
             roughness={0.98}
@@ -369,10 +421,16 @@ function RoadTile({ cx, cz }) {
       {horizontalRoads.map((z) => (
         <mesh
           key={`h-${z}`}
-          position={[minX + CHUNK_SIZE / 2, ROAD_HEIGHT / 2, z]}
+          position={[
+            minX + CHUNK_SIZE / 2,
+            ROAD_HEIGHT / 2,
+            z
+          ]}
           frustumCulled={false}
         >
-          <boxGeometry args={[CHUNK_SIZE, ROAD_HEIGHT, ROAD_WIDTH]} />
+          <boxGeometry
+            args={[CHUNK_SIZE, ROAD_HEIGHT, ROAD_WIDTH]}
+          />
           <meshStandardMaterial
             color="#353a39"
             roughness={0.98}
@@ -403,13 +461,17 @@ function RoadNetwork({ center }) {
   return (
     <group>
       {tiles.map(({ cx, cz }) => (
-        <RoadTile key={`${cx}:${cz}`} cx={cx} cz={cz} />
+        <RoadTile
+          key={`${cx}:${cz}`}
+          cx={cx}
+          cz={cz}
+        />
       ))}
     </group>
   );
 }
 
-/* البحيرة: عنصر ثابت مستقل */
+/* البحيرة */
 function Water() {
   return (
     <group
@@ -448,16 +510,24 @@ function Water() {
   );
 }
 
-/* تحميل الأشجار فقط عبر Chunks */
-function NatureWorld({ center }) {
-  const chunks = useMemo(() => {
+/* الأرضية المقسمة إلى قطع */
+function GroundSystem({ center }) {
+  const tiles = useMemo(() => {
     const result = [];
 
-    for (let x = -VIEW_DISTANCE; x <= VIEW_DISTANCE; x++) {
-      for (let z = -VIEW_DISTANCE; z <= VIEW_DISTANCE; z++) {
+    for (
+      let x = -VIEW_DISTANCE - 1;
+      x <= VIEW_DISTANCE + 1;
+      x++
+    ) {
+      for (
+        let z = -VIEW_DISTANCE - 1;
+        z <= VIEW_DISTANCE + 1;
+        z++
+      ) {
         result.push({
-          cx: center.x + x,
-          cz: center.z + z
+          x: center.x + x,
+          z: center.z + z
         });
       }
     }
@@ -466,21 +536,30 @@ function NatureWorld({ center }) {
   }, [center]);
 
   return (
-    <>
-      {chunks.map(({ cx, cz }) => (
-        <NatureChunk key={`${cx}:${cz}`} cx={cx} cz={cz} />
+    <group>
+      {tiles.map(({ x, z }) => (
+        <mesh
+          key={`${x}:${z}`}
+          rotation={[-Math.PI / 2, 0, 0]}
+          position={[
+            x * CHUNK_SIZE + CHUNK_SIZE / 2,
+            -0.2,
+            z * CHUNK_SIZE + CHUNK_SIZE / 2
+          ]}
+          frustumCulled={false}
+        >
+          <planeGeometry
+            args={[CHUNK_SIZE, CHUNK_SIZE]}
+          />
+          <meshStandardMaterial
+            color="#52734a"
+            roughness={1}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
       ))}
-    </>
+    </group>
   );
-}
-
-function NatureChunk({ cx, cz }) {
-  const objects = useMemo(
-    () => getChunkObjects(cx, cz),
-    [cx, cz]
-  );
-
-  return <Trees objects={objects} />;
 }
 
 /* العالم */
@@ -509,32 +588,20 @@ function World({ center }) {
         args={["#a9c2c7", 500, 1200]}
       />
 
-      {/* أرضية العالم */}
-      <mesh
-        rotation={[-Math.PI / 2, 0, 0]}
-        position={[0, -0.06, 0]}
-        frustumCulled={false}
-      >
-        <planeGeometry args={[100000, 100000]} />
-        <meshStandardMaterial
-          color="#52734a"
-          roughness={1}
-          side={THREE.DoubleSide}
-        />
-      </mesh>
+      <GroundSystem center={center} />
 
-      {/* عناصر مستقلة عن Chunks */}
       <RoadNetwork center={center} />
+
       <Water />
+
       <BuildingSystem />
 
-      {/* الطبيعة فقط تستخدم Chunks */}
       <NatureWorld center={center} />
     </>
   );
 }
 
-/* حركة اللاعب */
+/* التحكم في اللاعب */
 function PlayerController({
   joystick,
   onChunkChange,
@@ -608,17 +675,26 @@ function PlayerController({
     }
 
     input.current.set(0, 0, 0);
-    input.current.addScaledVector(forward.current, forwardInput);
-    input.current.addScaledVector(right.current, sideInput);
+    input.current.addScaledVector(
+      forward.current,
+      forwardInput
+    );
+    input.current.addScaledVector(
+      right.current,
+      sideInput
+    );
 
     if (input.current.lengthSq() > 1) {
       input.current.normalize();
     }
 
     const running =
-      keys.current.ShiftLeft || keys.current.ShiftRight;
+      keys.current.ShiftLeft ||
+      keys.current.ShiftRight;
 
-    const maxSpeed = running ? RUN_SPEED : WALK_SPEED;
+    const maxSpeed = running
+      ? RUN_SPEED
+      : WALK_SPEED;
 
     const targetX = input.current.x * maxSpeed;
     const targetZ = input.current.z * maxSpeed;
@@ -626,21 +702,28 @@ function PlayerController({
     velocity.current.x = THREE.MathUtils.damp(
       velocity.current.x,
       targetX,
-      input.current.lengthSq() > 0 ? ACCELERATION : FRICTION,
+      input.current.lengthSq() > 0
+        ? ACCELERATION
+        : FRICTION,
       dt
     );
 
     velocity.current.z = THREE.MathUtils.damp(
       velocity.current.z,
       targetZ,
-      input.current.lengthSq() > 0 ? ACCELERATION : FRICTION,
+      input.current.lengthSq() > 0
+        ? ACCELERATION
+        : FRICTION,
       dt
     );
 
     const current = position.current;
 
-    const nextX = current.x + velocity.current.x * dt;
-    const nextZ = current.z + velocity.current.z * dt;
+    const nextX =
+      current.x + velocity.current.x * dt;
+
+    const nextZ =
+      current.z + velocity.current.z * dt;
 
     const insideWater = (x, z) =>
       distance(x, z, WATER.x, WATER.z) <
@@ -678,7 +761,7 @@ function PlayerController({
   return null;
 }
 
-/* تحريك الكاميرا باللمس */
+/* التحكم في اتجاه الكاميرا باللمس */
 function MobileCameraLook({ cameraRef }) {
   const touch = useRef(null);
 
@@ -689,7 +772,9 @@ function MobileCameraLook({ cameraRef }) {
       y: event.clientY
     };
 
-    event.currentTarget.setPointerCapture(event.pointerId);
+    event.currentTarget.setPointerCapture(
+      event.pointerId
+    );
   };
 
   const move = (event) => {
@@ -734,13 +819,17 @@ function MobileCameraLook({ cameraRef }) {
 
 /* عصا التحكم */
 function MobileJoystick({ onChange }) {
-  const [knob, setKnob] = useState({ x: 0, y: 0 });
+  const [knob, setKnob] = useState({
+    x: 0,
+    y: 0
+  });
 
   const baseRef = useRef(null);
   const pointer = useRef(null);
 
   const update = (event) => {
-    const rect = baseRef.current.getBoundingClientRect();
+    const rect =
+      baseRef.current.getBoundingClientRect();
 
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
@@ -758,12 +847,20 @@ function MobileJoystick({ onChange }) {
     }
 
     setKnob({ x: dx, y: dy });
-    onChange({ x: dx / max, y: dy / max });
+
+    onChange({
+      x: dx / max,
+      y: dy / max
+    });
   };
 
   const down = (event) => {
     pointer.current = event.pointerId;
-    event.currentTarget.setPointerCapture(event.pointerId);
+
+    event.currentTarget.setPointerCapture(
+      event.pointerId
+    );
+
     update(event);
   };
 
@@ -777,8 +874,13 @@ function MobileJoystick({ onChange }) {
     if (pointer.current !== event.pointerId) return;
 
     pointer.current = null;
+
     setKnob({ x: 0, y: 0 });
-    onChange({ x: 0, y: 0 });
+
+    onChange({
+      x: 0,
+      y: 0
+    });
   };
 
   return (
@@ -802,7 +904,7 @@ function MobileJoystick({ onChange }) {
   );
 }
 
-/* تشغيل اللعبة */
+/* مكوّن اللعبة الرئيسي */
 export default function Game() {
   const [center, setCenter] = useState({
     x: 0,
@@ -817,7 +919,11 @@ export default function Game() {
   const [mobile, setMobile] = useState(false);
 
   const cameraRef = useRef(null);
-  const lastChunk = useRef({ x: 0, z: 0 });
+
+  const lastChunk = useRef({
+    x: 0,
+    z: 0
+  });
 
   useEffect(() => {
     const check = () => {
@@ -828,6 +934,7 @@ export default function Game() {
     };
 
     check();
+
     window.addEventListener("resize", check);
 
     return () => {
@@ -844,6 +951,7 @@ export default function Game() {
     }
 
     lastChunk.current = { x, z };
+
     setCenter({ x, z });
   };
 
@@ -854,8 +962,8 @@ export default function Game() {
         camera={{
           position: [0, PLAYER_HEIGHT, 8],
           fov: 68,
-          near: 0.1,
-          far: 1400
+          near: 0.5,
+          far: 600
         }}
         dpr={[1, 1.2]}
         gl={{
@@ -877,7 +985,10 @@ export default function Game() {
       {mobile && (
         <>
           <MobileCameraLook cameraRef={cameraRef} />
-          <MobileJoystick onChange={setJoystick} />
+
+          <MobileJoystick
+            onChange={setJoystick}
+          />
         </>
       )}
     </div>
