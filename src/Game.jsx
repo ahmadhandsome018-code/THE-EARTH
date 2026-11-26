@@ -19,8 +19,6 @@ const LOOK_SENSITIVITY = 0.003;
 const ROAD_SPACING = 240;
 const ROAD_WIDTH = 8;
 
-const COLLISION_CELL = 12;
-
 const WATER = {
   x: 35,
   z: -25,
@@ -71,7 +69,6 @@ function isSpawnArea(x, z) {
 
 function createChunk(cx, cz) {
   const objects = [];
-
   const columns = Math.ceil(CHUNK_SIZE / 12);
 
   for (let ix = 0; ix < columns; ix++) {
@@ -138,7 +135,6 @@ function getChunkObjects(cx, cz) {
   return chunkCache.get(key);
 }
 
-/* فهرس مكاني للعوائق القريبة */
 function getNearbyObstacles(x, z) {
   const result = [];
 
@@ -192,7 +188,7 @@ function collidesWithNearby(x, z) {
   return false;
 }
 
-/* الأشجار باستخدام InstancedMesh */
+/* الأشجار */
 function Trees({ objects }) {
   const trunks = useRef(null);
   const leavesA = useRef(null);
@@ -234,6 +230,12 @@ function Trees({ objects }) {
     trunks.current.instanceMatrix.needsUpdate = true;
     leavesA.current.instanceMatrix.needsUpdate = true;
     leavesB.current.instanceMatrix.needsUpdate = true;
+
+    // إعادة حساب حدود المجسمات بعد توزيع الأشجار
+    trunks.current.computeBoundingSphere();
+    leavesA.current.computeBoundingSphere();
+    leavesB.current.computeBoundingSphere();
+
   }, [treeObjects]);
 
   if (treeObjects.length === 0) return null;
@@ -243,8 +245,7 @@ function Trees({ objects }) {
       <instancedMesh
         ref={trunks}
         args={[undefined, undefined, treeObjects.length]}
-        castShadow={false}
-        receiveShadow={false}
+        frustumCulled={false}
       >
         <cylinderGeometry args={[0.13, 0.2, 2.2, 7]} />
         <meshStandardMaterial color="#59402d" roughness={1} />
@@ -253,7 +254,7 @@ function Trees({ objects }) {
       <instancedMesh
         ref={leavesA}
         args={[undefined, undefined, treeObjects.length]}
-        castShadow={false}
+        frustumCulled={false}
       >
         <coneGeometry args={[1.05, 2.2, 7]} />
         <meshStandardMaterial color="#245c37" roughness={0.95} />
@@ -262,7 +263,7 @@ function Trees({ objects }) {
       <instancedMesh
         ref={leavesB}
         args={[undefined, undefined, treeObjects.length]}
-        castShadow={false}
+        frustumCulled={false}
       >
         <coneGeometry args={[0.72, 1.7, 7]} />
         <meshStandardMaterial color="#347447" roughness={0.95} />
@@ -274,7 +275,7 @@ function Trees({ objects }) {
 function Building({ position, height, color }) {
   return (
     <group position={position}>
-      <mesh position={[0, height / 2, 0]} castShadow receiveShadow>
+      <mesh position={[0, height / 2, 0]} castShadow>
         <boxGeometry args={[5, height, 5]} />
         <meshStandardMaterial color={color} roughness={0.88} />
       </mesh>
@@ -287,14 +288,80 @@ function Building({ position, height, color }) {
           position={[2.51, 1.2 + index * 2, 0]}
         >
           <boxGeometry args={[0.04, 0.8, 0.9]} />
-          <meshStandardMaterial
-            color="#91bdc1"
-            roughness={0.3}
-          />
+          <meshStandardMaterial color="#91bdc1" roughness={0.3} />
         </mesh>
       ))}
     </group>
   );
+}
+
+/* طرق ثابتة داخل إحداثيات كل Chunk */
+function ChunkRoads({ cx, cz }) {
+  const minX = cx * CHUNK_SIZE;
+  const maxX = minX + CHUNK_SIZE;
+
+  const minZ = cz * CHUNK_SIZE;
+  const maxZ = minZ + CHUNK_SIZE;
+
+  const roads = [];
+
+  const firstRoadX =
+    Math.ceil(minX / ROAD_SPACING) * ROAD_SPACING;
+
+  const firstRoadZ =
+    Math.ceil(minZ / ROAD_SPACING) * ROAD_SPACING;
+
+  for (
+    let x = firstRoadX;
+    x <= maxX;
+    x += ROAD_SPACING
+  ) {
+    roads.push(
+      <mesh
+        key={`vertical-${x}`}
+        position={[
+          x,
+          0.015,
+          minZ + CHUNK_SIZE / 2
+        ]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        frustumCulled={false}
+      >
+        <planeGeometry args={[ROAD_WIDTH, CHUNK_SIZE]} />
+        <meshStandardMaterial
+          color="#353a39"
+          roughness={0.98}
+        />
+      </mesh>
+    );
+  }
+
+  for (
+    let z = firstRoadZ;
+    z <= maxZ;
+    z += ROAD_SPACING
+  ) {
+    roads.push(
+      <mesh
+        key={`horizontal-${z}`}
+        position={[
+          minX + CHUNK_SIZE / 2,
+          0.016,
+          z
+        ]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        frustumCulled={false}
+      >
+        <planeGeometry args={[CHUNK_SIZE, ROAD_WIDTH]} />
+        <meshStandardMaterial
+          color="#353a39"
+          roughness={0.98}
+        />
+      </mesh>
+    );
+  }
+
+  return <>{roads}</>;
 }
 
 function Chunk({ cx, cz }) {
@@ -310,6 +377,8 @@ function Chunk({ cx, cz }) {
 
   return (
     <group>
+      <ChunkRoads cx={cx} cz={cz} />
+
       <Trees objects={objects} />
 
       {buildings.map((building, index) => (
@@ -322,40 +391,6 @@ function Chunk({ cx, cz }) {
       ))}
     </group>
   );
-}
-
-/* الطرق ثابتة في إحداثيات العالم */
-function Roads({ centerX, centerZ }) {
-  const roads = [];
-
-  for (let i = -3; i <= 3; i++) {
-    const x = (centerX + i) * ROAD_SPACING;
-    const z = (centerZ + i) * ROAD_SPACING;
-
-    roads.push(
-      <mesh
-        key={`x-${x}`}
-        position={[x, 0.005, centerZ * CHUNK_SIZE]}
-        rotation={[-Math.PI / 2, 0, 0]}
-      >
-        <planeGeometry args={[ROAD_WIDTH, 1200]} />
-        <meshStandardMaterial color="#353a39" roughness={0.98} />
-      </mesh>
-    );
-
-    roads.push(
-      <mesh
-        key={`z-${z}`}
-        position={[centerX * CHUNK_SIZE, 0.006, z]}
-        rotation={[-Math.PI / 2, 0, 0]}
-      >
-        <planeGeometry args={[1200, ROAD_WIDTH]} />
-        <meshStandardMaterial color="#353a39" roughness={0.98} />
-      </mesh>
-    );
-  }
-
-  return <>{roads}</>;
 }
 
 function Water() {
@@ -421,21 +456,19 @@ function World({ center }) {
         sunPosition={[100, 35, 100]}
       />
 
+      {/* تقليل اختفاء العناصر بسبب الضباب */}
       <fog
         attach="fog"
-        args={["#a9c2c7", 220, 750]}
+        args={["#a9c2c7", 500, 1200]}
       />
 
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
         position={[0, -0.06, 0]}
-        receiveShadow={false}
       >
         <planeGeometry args={[100000, 100000]} />
         <meshStandardMaterial color="#52734a" roughness={1} />
       </mesh>
-
-      <Roads centerX={center.x} centerZ={center.z} />
 
       <Water />
 
@@ -453,6 +486,7 @@ function PlayerController({
 }) {
   const keys = useRef({});
   const velocity = useRef(new THREE.Vector3());
+
   const position = useRef(
     new THREE.Vector3(0, PLAYER_HEIGHT, 8)
   );
@@ -666,16 +700,11 @@ function MobileJoystick({ onChange }) {
     }
 
     setKnob({ x: dx, y: dy });
-
-    onChange({
-      x: dx / max,
-      y: dy / max
-    });
+    onChange({ x: dx / max, y: dy / max });
   };
 
   const down = (event) => {
     pointer.current = event.pointerId;
-
     event.currentTarget.setPointerCapture(event.pointerId);
     update(event);
   };
@@ -740,7 +769,6 @@ export default function Game() {
     };
 
     check();
-
     window.addEventListener("resize", check);
 
     return () => {
@@ -768,7 +796,7 @@ export default function Game() {
           position: [0, PLAYER_HEIGHT, 8],
           fov: 68,
           near: 0.1,
-          far: 850
+          far: 1400
         }}
         dpr={[1, 1.2]}
         gl={{
