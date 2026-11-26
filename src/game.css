@@ -30,7 +30,6 @@ body,
   touch-action: none;
 }
 
-/* منطقة تحريك الكاميرا */
 .camera-touch-area {
   position: absolute;
   inset: 0;
@@ -39,13 +38,12 @@ body,
   pointer-events: auto;
 }
 
-/* عصا الحركة */
 .mobile-joystick {
   position: absolute;
-  left: 22px;
-  bottom: 28px;
-  width: 112px;
-  height: 112px;
+  left: max(18px, env(safe-area-inset-left));
+  bottom: max(24px, env(safe-area-inset-bottom));
+  width: 116px;
+  height: 116px;
   z-index: 20;
   display: flex;
   align-items: center;
@@ -56,36 +54,103 @@ body,
 }
 
 .joystick-base {
-  width: 104px;
-  height: 104px;
-  border: 1.5px solid rgba(255, 255, 255, 0.55);
+  width: 108px;
+  height: 108px;
+  border: 1.5px solid rgba(255, 255, 255, 0.58);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(20, 30, 35, 0.25);
-  backdrop-filter: blur(3px);
+  background: rgba(20, 30, 35, 0.28);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 
 .joystick-knob {
-  width: 44px;
-  height: 44px;
-  border: 1.5px solid rgba(255, 255, 255, 0.9);
+  width: 46px;
+  height: 46px;
+  border: 1.5px solid rgba(255, 255, 255, 0.94);
   border-radius: 50%;
-  background: rgba(225, 235, 235, 0.78);
+  background: rgba(225, 235, 235, 0.8);
+  pointer-events: none;
+}
+
+.jump-button {
+  position: absolute;
+  right: max(24px, env(safe-area-inset-right));
+  bottom: max(42px, env(safe-area-inset-bottom));
+  z-index: 22;
+  width: 76px;
+  height: 76px;
+  border: 1.5px solid rgba(255, 255, 255, 0.75);
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(23, 42, 48, 0.55);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 0;
+  font: inherit;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.jump-button:active {
+  background: rgba(225, 235, 235, 0.38);
+  transform: scale(0.96);
+}
+
+.jump-arrow {
+  font-size: 30px;
+  line-height: 30px;
+  font-weight: 700;
+}
+
+.jump-label {
+  font-size: 13px;
+  line-height: 17px;
+}
+
+.desktop-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  z-index: 12;
+  transform: translateX(-50%);
+  padding: 8px 13px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 9px;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(14, 22, 25, 0.55);
+  font: 12px/1.4 system-ui, sans-serif;
+  white-space: nowrap;
   pointer-events: none;
 }
 
 @media (max-width: 480px) {
   .mobile-joystick {
-    left: 15px;
-    bottom: 20px;
-    width: 100px;
-    height: 100px;
+    left: max(12px, env(safe-area-inset-left));
+    bottom: max(18px, env(safe-area-inset-bottom));
+    width: 102px;
+    height: 102px;
   }
 
   .joystick-base {
-    width: 94px;
-    height: 94px;
+    width: 96px;
+    height: 96px;
   }
+
+  .jump-button {
+    right: max(18px, env(safe-area-inset-right));
+    bottom: max(32px, env(safe-area-inset-bottom));
+    width: 68px;
+    height: 68px;
+  }
+}
+
+@media (orientation: portrait) and (max-width: 700px) {
+  .desktop-hint { display: none; }
 }
