@@ -18,6 +18,7 @@ const LOOK_SENSITIVITY = 0.003;
 
 const ROAD_SPACING = 240;
 const ROAD_WIDTH = 8;
+const ROAD_HEIGHT = 0.08;
 
 const WATER = {
   x: 35,
@@ -188,7 +189,7 @@ function collidesWithNearby(x, z) {
   return false;
 }
 
-/* الأشجار */
+/* الأشجار: نظام مستقل لكل Chunk */
 function Trees({ objects }) {
   const trunks = useRef(null);
   const leavesA = useRef(null);
@@ -238,7 +239,7 @@ function Trees({ objects }) {
     leavesB.current.computeBoundingSphere();
   }, [treeObjects]);
 
-  if (treeObjects.length === 0) return null;
+  if (!treeObjects.length) return null;
 
   return (
     <>
@@ -272,10 +273,17 @@ function Trees({ objects }) {
   );
 }
 
-/* المباني */
+/* المباني: مستقلة عن تحميل الأشجار */
+const BUILDINGS = [
+  { x: 15, z: -15, height: 8, color: "#b9b4a6" },
+  { x: -15, z: -15, height: 6, color: "#c6c0b1" },
+  { x: 15, z: 15, height: 10, color: "#9faeac" },
+  { x: -15, z: 15, height: 7, color: "#b8a995" }
+];
+
 function Building({ position, height, color }) {
   return (
-    <group position={position}>
+    <group position={position} frustumCulled={false}>
       <mesh
         position={[0, height / 2, 0]}
         castShadow
@@ -301,93 +309,10 @@ function Building({ position, height, color }) {
   );
 }
 
-/* الطرق */
-function ChunkRoads({ cx, cz }) {
-  const minX = cx * CHUNK_SIZE;
-  const maxX = minX + CHUNK_SIZE;
-
-  const minZ = cz * CHUNK_SIZE;
-  const maxZ = minZ + CHUNK_SIZE;
-
-  const roads = [];
-
-  const firstRoadX =
-    Math.ceil(minX / ROAD_SPACING) * ROAD_SPACING;
-
-  const firstRoadZ =
-    Math.ceil(minZ / ROAD_SPACING) * ROAD_SPACING;
-
-  for (
-    let x = firstRoadX;
-    x <= maxX;
-    x += ROAD_SPACING
-  ) {
-    roads.push(
-      <mesh
-        key={`vertical-${x}`}
-        position={[
-          x,
-          0.015,
-          minZ + CHUNK_SIZE / 2
-        ]}
-        rotation={[-Math.PI / 2, 0, 0]}
-        frustumCulled={false}
-      >
-        <planeGeometry args={[ROAD_WIDTH, CHUNK_SIZE]} />
-        <meshStandardMaterial
-          color="#353a39"
-          roughness={0.98}
-        />
-      </mesh>
-    );
-  }
-
-  for (
-    let z = firstRoadZ;
-    z <= maxZ;
-    z += ROAD_SPACING
-  ) {
-    roads.push(
-      <mesh
-        key={`horizontal-${z}`}
-        position={[
-          minX + CHUNK_SIZE / 2,
-          0.016,
-          z
-        ]}
-        rotation={[-Math.PI / 2, 0, 0]}
-        frustumCulled={false}
-      >
-        <planeGeometry args={[CHUNK_SIZE, ROAD_WIDTH]} />
-        <meshStandardMaterial
-          color="#353a39"
-          roughness={0.98}
-        />
-      </mesh>
-    );
-  }
-
-  return <>{roads}</>;
-}
-
-function Chunk({ cx, cz }) {
-  const objects = useMemo(
-    () => getChunkObjects(cx, cz),
-    [cx, cz]
-  );
-
-  const buildings = useMemo(
-    () => objects.filter((item) => item.type === "building"),
-    [objects]
-  );
-
+function BuildingSystem() {
   return (
     <group>
-      <ChunkRoads cx={cx} cz={cz} />
-
-      <Trees objects={objects} />
-
-      {buildings.map((building, index) => (
+      {BUILDINGS.map((building, index) => (
         <Building
           key={index}
           position={[building.x, 0, building.z]}
@@ -399,42 +324,132 @@ function Chunk({ cx, cz }) {
   );
 }
 
-/* البحيرة */
+/* شبكة الطرق: مستقلة عن مكوّن Chunk */
+function RoadTile({ cx, cz }) {
+  const minX = cx * CHUNK_SIZE;
+  const minZ = cz * CHUNK_SIZE;
+
+  const maxX = minX + CHUNK_SIZE;
+  const maxZ = minZ + CHUNK_SIZE;
+
+  const verticalRoads = [];
+  const horizontalRoads = [];
+
+  const firstRoadX =
+    Math.ceil(minX / ROAD_SPACING) * ROAD_SPACING;
+
+  const firstRoadZ =
+    Math.ceil(minZ / ROAD_SPACING) * ROAD_SPACING;
+
+  for (let x = firstRoadX; x < maxX; x += ROAD_SPACING) {
+    verticalRoads.push(x);
+  }
+
+  for (let z = firstRoadZ; z < maxZ; z += ROAD_SPACING) {
+    horizontalRoads.push(z);
+  }
+
+  return (
+    <group>
+      {verticalRoads.map((x) => (
+        <mesh
+          key={`v-${x}`}
+          position={[x, ROAD_HEIGHT / 2, minZ + CHUNK_SIZE / 2]}
+          frustumCulled={false}
+        >
+          <boxGeometry args={[ROAD_WIDTH, ROAD_HEIGHT, CHUNK_SIZE]} />
+          <meshStandardMaterial
+            color="#353a39"
+            roughness={0.98}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+      ))}
+
+      {horizontalRoads.map((z) => (
+        <mesh
+          key={`h-${z}`}
+          position={[minX + CHUNK_SIZE / 2, ROAD_HEIGHT / 2, z]}
+          frustumCulled={false}
+        >
+          <boxGeometry args={[CHUNK_SIZE, ROAD_HEIGHT, ROAD_WIDTH]} />
+          <meshStandardMaterial
+            color="#353a39"
+            roughness={0.98}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function RoadNetwork({ center }) {
+  const tiles = useMemo(() => {
+    const result = [];
+
+    for (let x = -VIEW_DISTANCE; x <= VIEW_DISTANCE; x++) {
+      for (let z = -VIEW_DISTANCE; z <= VIEW_DISTANCE; z++) {
+        result.push({
+          cx: center.x + x,
+          cz: center.z + z
+        });
+      }
+    }
+
+    return result;
+  }, [center]);
+
+  return (
+    <group>
+      {tiles.map(({ cx, cz }) => (
+        <RoadTile key={`${cx}:${cz}`} cx={cx} cz={cz} />
+      ))}
+    </group>
+  );
+}
+
+/* البحيرة: عنصر ثابت مستقل */
 function Water() {
   return (
-    <group position={[WATER.x, 0, WATER.z]}>
+    <group
+      position={[WATER.x, 0, WATER.z]}
+      frustumCulled={false}
+    >
       <mesh
-        frustumCulled={false}
         rotation={[-Math.PI / 2, 0, 0]}
         position={[0, 0.015, 0]}
+        frustumCulled={false}
       >
-        <circleGeometry args={[WATER.shoreRadius, 48]} />
+        <circleGeometry args={[WATER.shoreRadius, 64]} />
         <meshStandardMaterial
           color="#b7a77e"
           roughness={1}
+          side={THREE.DoubleSide}
         />
       </mesh>
 
       <mesh
-        frustumCulled={false}
         rotation={[-Math.PI / 2, 0, 0]}
         position={[0, 0.04, 0]}
+        frustumCulled={false}
       >
-        <circleGeometry args={[WATER.radius, 48]} />
+        <circleGeometry args={[WATER.radius, 64]} />
         <meshPhysicalMaterial
           color="#07516d"
           roughness={0.22}
           metalness={0.12}
           clearcoat={0.8}
           clearcoatRoughness={0.2}
+          side={THREE.DoubleSide}
         />
       </mesh>
     </group>
   );
 }
 
-/* العالم */
-function World({ center }) {
+/* تحميل الأشجار فقط عبر Chunks */
+function NatureWorld({ center }) {
   const chunks = useMemo(() => {
     const result = [];
 
@@ -450,6 +465,26 @@ function World({ center }) {
     return result;
   }, [center]);
 
+  return (
+    <>
+      {chunks.map(({ cx, cz }) => (
+        <NatureChunk key={`${cx}:${cz}`} cx={cx} cz={cz} />
+      ))}
+    </>
+  );
+}
+
+function NatureChunk({ cx, cz }) {
+  const objects = useMemo(
+    () => getChunkObjects(cx, cz),
+    [cx, cz]
+  );
+
+  return <Trees objects={objects} />;
+}
+
+/* العالم */
+function World({ center }) {
   return (
     <>
       <ambientLight intensity={0.65} />
@@ -474,33 +509,32 @@ function World({ center }) {
         args={["#a9c2c7", 500, 1200]}
       />
 
-      {/* الأرض */}
+      {/* أرضية العالم */}
       <mesh
-        frustumCulled={false}
         rotation={[-Math.PI / 2, 0, 0]}
         position={[0, -0.06, 0]}
+        frustumCulled={false}
       >
         <planeGeometry args={[100000, 100000]} />
         <meshStandardMaterial
           color="#52734a"
           roughness={1}
+          side={THREE.DoubleSide}
         />
       </mesh>
 
+      {/* عناصر مستقلة عن Chunks */}
+      <RoadNetwork center={center} />
       <Water />
+      <BuildingSystem />
 
-      {chunks.map(({ cx, cz }) => (
-        <Chunk
-          key={`${cx}:${cz}`}
-          cx={cx}
-          cz={cz}
-        />
-      ))}
+      {/* الطبيعة فقط تستخدم Chunks */}
+      <NatureWorld center={center} />
     </>
   );
 }
 
-/* التحكم في اللاعب */
+/* حركة اللاعب */
 function PlayerController({
   joystick,
   onChunkChange,
@@ -768,7 +802,7 @@ function MobileJoystick({ onChange }) {
   );
 }
 
-/* اللعبة */
+/* تشغيل اللعبة */
 export default function Game() {
   const [center, setCenter] = useState({
     x: 0,
