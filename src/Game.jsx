@@ -10,14 +10,16 @@ const VIEW_DISTANCE = 2;
 const PLAYER_HEIGHT = 1.7;
 const PLAYER_RADIUS = 0.42;
 
-const WALK_SPEED = 4.2;
-const RUN_SPEED = 6.2;
-const ACCELERATION = 13;
-const FRICTION = 10;
+const WALK_SPEED = 5.5;
+const RUN_SPEED = 8.2;
+const ACCELERATION = 18;
+const FRICTION = 12;
 const LOOK_SENSITIVITY = 0.003;
 
 const ROAD_SPACING = 240;
 const ROAD_WIDTH = 8;
+
+const COLLISION_CELL = 12;
 
 const WATER = {
   x: 35,
@@ -25,6 +27,8 @@ const WATER = {
   radius: 14,
   shoreRadius: 19
 };
+
+const chunkCache = new Map();
 
 function random(seed) {
   const value = Math.sin(seed * 127.1 + 311.7) * 43758.5453;
@@ -49,23 +53,22 @@ function isRoad(x, z) {
   );
 
   return (
-    roadX < ROAD_WIDTH / 2 + 3 ||
-    roadZ < ROAD_WIDTH / 2 + 3
+    roadX < ROAD_WIDTH / 2 + 4 ||
+    roadZ < ROAD_WIDTH / 2 + 4
   );
 }
 
 function isWaterArea(x, z) {
   return (
     distance(x, z, WATER.x, WATER.z) <
-    WATER.shoreRadius + 2
+    WATER.shoreRadius + 3
   );
 }
 
 function isSpawnArea(x, z) {
-  return Math.abs(x) < 18 && Math.abs(z) < 18;
+  return Math.abs(x) < 20 && Math.abs(z) < 20;
 }
 
-/* توزيع الأشجار بنقاط متباعدة وثابتة */
 function createChunk(cx, cz) {
   const objects = [];
 
@@ -106,7 +109,6 @@ function createChunk(cx, cz) {
     }
   }
 
-  /* مباني البداية */
   if (cx === 0 && cz === 0) {
     const buildings = [
       { x: 15, z: -15, height: 8, color: "#b9b4a6" },
@@ -126,49 +128,155 @@ function createChunk(cx, cz) {
   return objects;
 }
 
-function Tree({ position, scale }) {
+function getChunkObjects(cx, cz) {
+  const key = `${cx}:${cz}`;
+
+  if (!chunkCache.has(key)) {
+    chunkCache.set(key, createChunk(cx, cz));
+  }
+
+  return chunkCache.get(key);
+}
+
+/* فهرس مكاني للعوائق القريبة */
+function getNearbyObstacles(x, z) {
+  const result = [];
+
+  const minX = Math.floor((x - 5) / CHUNK_SIZE);
+  const maxX = Math.floor((x + 5) / CHUNK_SIZE);
+  const minZ = Math.floor((z - 5) / CHUNK_SIZE);
+  const maxZ = Math.floor((z + 5) / CHUNK_SIZE);
+
+  for (let cx = minX; cx <= maxX; cx++) {
+    for (let cz = minZ; cz <= maxZ; cz++) {
+      const objects = getChunkObjects(cx, cz);
+
+      for (const object of objects) {
+        const radius =
+          object.type === "tree"
+            ? 0.85 * object.scale
+            : 3.5;
+
+        if (
+          Math.abs(object.x - x) < radius + 5 &&
+          Math.abs(object.z - z) < radius + 5
+        ) {
+          result.push({
+            x: object.x,
+            z: object.z,
+            radius
+          });
+        }
+      }
+    }
+  }
+
+  return result;
+}
+
+function collidesWithNearby(x, z) {
+  const obstacles = getNearbyObstacles(x, z);
+
+  for (const obstacle of obstacles) {
+    const dx = x - obstacle.x;
+    const dz = z - obstacle.z;
+
+    if (
+      dx * dx + dz * dz <
+      (obstacle.radius + PLAYER_RADIUS) ** 2
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/* الأشجار باستخدام InstancedMesh */
+function Trees({ objects }) {
+  const trunks = useRef(null);
+  const leavesA = useRef(null);
+  const leavesB = useRef(null);
+
+  const treeObjects = useMemo(
+    () => objects.filter((item) => item.type === "tree"),
+    [objects]
+  );
+
+  useEffect(() => {
+    if (
+      !trunks.current ||
+      !leavesA.current ||
+      !leavesB.current
+    ) return;
+
+    const dummy = new THREE.Object3D();
+
+    treeObjects.forEach((tree, index) => {
+      const { x, z, scale } = tree;
+
+      dummy.position.set(x, 1.1 * scale, z);
+      dummy.scale.setScalar(scale);
+      dummy.updateMatrix();
+      trunks.current.setMatrixAt(index, dummy.matrix);
+
+      dummy.position.set(x, 2.35 * scale, z);
+      dummy.scale.setScalar(scale);
+      dummy.updateMatrix();
+      leavesA.current.setMatrixAt(index, dummy.matrix);
+
+      dummy.position.set(x, 3.25 * scale, z);
+      dummy.scale.setScalar(scale);
+      dummy.updateMatrix();
+      leavesB.current.setMatrixAt(index, dummy.matrix);
+    });
+
+    trunks.current.instanceMatrix.needsUpdate = true;
+    leavesA.current.instanceMatrix.needsUpdate = true;
+    leavesB.current.instanceMatrix.needsUpdate = true;
+  }, [treeObjects]);
+
+  if (treeObjects.length === 0) return null;
+
   return (
-    <group position={position} scale={scale}>
-      <mesh position={[0, 1.1, 0]} castShadow receiveShadow>
-        <cylinderGeometry args={[0.13, 0.2, 2.2, 8]} />
-        <meshStandardMaterial
-          color="#59402d"
-          roughness={1}
-        />
-      </mesh>
+    <>
+      <instancedMesh
+        ref={trunks}
+        args={[undefined, undefined, treeObjects.length]}
+        castShadow={false}
+        receiveShadow={false}
+      >
+        <cylinderGeometry args={[0.13, 0.2, 2.2, 7]} />
+        <meshStandardMaterial color="#59402d" roughness={1} />
+      </instancedMesh>
 
-      <mesh position={[0, 2.35, 0]} castShadow>
-        <coneGeometry args={[1.05, 2.2, 9]} />
-        <meshStandardMaterial
-          color="#245c37"
-          roughness={0.95}
-        />
-      </mesh>
+      <instancedMesh
+        ref={leavesA}
+        args={[undefined, undefined, treeObjects.length]}
+        castShadow={false}
+      >
+        <coneGeometry args={[1.05, 2.2, 7]} />
+        <meshStandardMaterial color="#245c37" roughness={0.95} />
+      </instancedMesh>
 
-      <mesh position={[0, 3.25, 0]} castShadow>
-        <coneGeometry args={[0.72, 1.7, 9]} />
-        <meshStandardMaterial
-          color="#347447"
-          roughness={0.95}
-        />
-      </mesh>
-    </group>
+      <instancedMesh
+        ref={leavesB}
+        args={[undefined, undefined, treeObjects.length]}
+        castShadow={false}
+      >
+        <coneGeometry args={[0.72, 1.7, 7]} />
+        <meshStandardMaterial color="#347447" roughness={0.95} />
+      </instancedMesh>
+    </>
   );
 }
 
 function Building({ position, height, color }) {
   return (
     <group position={position}>
-      <mesh
-        position={[0, height / 2, 0]}
-        castShadow
-        receiveShadow
-      >
+      <mesh position={[0, height / 2, 0]} castShadow receiveShadow>
         <boxGeometry args={[5, height, 5]} />
-        <meshStandardMaterial
-          color={color}
-          roughness={0.88}
-        />
+        <meshStandardMaterial color={color} roughness={0.88} />
       </mesh>
 
       {Array.from({
@@ -189,68 +297,35 @@ function Building({ position, height, color }) {
   );
 }
 
-function Chunk({ cx, cz, obstacles }) {
+function Chunk({ cx, cz }) {
   const objects = useMemo(
-    () => createChunk(cx, cz),
+    () => getChunkObjects(cx, cz),
     [cx, cz]
   );
 
-  useEffect(() => {
-    const added = objects.map((object) => ({
-      x: object.x,
-      z: object.z,
-      radius:
-        object.type === "tree"
-          ? 0.85 * object.scale
-          : 3.5,
-      height:
-        object.type === "tree"
-          ? 4.5 * object.scale
-          : object.height
-    }));
-
-    obstacles.current.push(...added);
-
-    return () => {
-      const removed = new Set(added);
-
-      obstacles.current = obstacles.current.filter(
-        (item) => !removed.has(item)
-      );
-    };
-  }, [objects, obstacles]);
+  const buildings = useMemo(
+    () => objects.filter((item) => item.type === "building"),
+    [objects]
+  );
 
   return (
     <group>
-      {objects.map((object, index) =>
-        object.type === "tree" ? (
-          <Tree
-            key={index}
-            position={[object.x, 0, object.z]}
-            scale={object.scale}
-          />
-        ) : (
-          <Building
-            key={index}
-            position={[object.x, 0, object.z]}
-            height={object.height}
-            color={object.color}
-          />
-        )
-      )}
+      <Trees objects={objects} />
+
+      {buildings.map((building, index) => (
+        <Building
+          key={index}
+          position={[building.x, 0, building.z]}
+          height={building.height}
+          color={building.color}
+        />
+      ))}
     </group>
   );
 }
 
-function Roads({ playerPosition }) {
-  const centerX = Math.round(
-    playerPosition.x / ROAD_SPACING
-  );
-
-  const centerZ = Math.round(
-    playerPosition.z / ROAD_SPACING
-  );
-
+/* الطرق ثابتة في إحداثيات العالم */
+function Roads({ centerX, centerZ }) {
   const roads = [];
 
   for (let i = -3; i <= 3; i++) {
@@ -260,28 +335,22 @@ function Roads({ playerPosition }) {
     roads.push(
       <mesh
         key={`x-${x}`}
-        position={[x, 0.005, playerPosition.z]}
+        position={[x, 0.005, centerZ * CHUNK_SIZE]}
         rotation={[-Math.PI / 2, 0, 0]}
       >
         <planeGeometry args={[ROAD_WIDTH, 1200]} />
-        <meshStandardMaterial
-          color="#353a39"
-          roughness={0.98}
-        />
+        <meshStandardMaterial color="#353a39" roughness={0.98} />
       </mesh>
     );
 
     roads.push(
       <mesh
         key={`z-${z}`}
-        position={[playerPosition.x, 0.006, z]}
+        position={[centerX * CHUNK_SIZE, 0.006, z]}
         rotation={[-Math.PI / 2, 0, 0]}
       >
         <planeGeometry args={[1200, ROAD_WIDTH]} />
-        <meshStandardMaterial
-          color="#353a39"
-          roughness={0.98}
-        />
+        <meshStandardMaterial color="#353a39" roughness={0.98} />
       </mesh>
     );
   }
@@ -292,28 +361,19 @@ function Roads({ playerPosition }) {
 function Water() {
   return (
     <group position={[WATER.x, 0, WATER.z]}>
-      {/* الشاطئ */}
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
         position={[0, 0.015, 0]}
       >
-        <circleGeometry
-          args={[WATER.shoreRadius, 64]}
-        />
-        <meshStandardMaterial
-          color="#b7a77e"
-          roughness={1}
-        />
+        <circleGeometry args={[WATER.shoreRadius, 48]} />
+        <meshStandardMaterial color="#b7a77e" roughness={1} />
       </mesh>
 
-      {/* المياه */}
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
         position={[0, 0.04, 0]}
       >
-        <circleGeometry
-          args={[WATER.radius, 64]}
-        />
+        <circleGeometry args={[WATER.radius, 48]} />
         <meshPhysicalMaterial
           color="#07516d"
           roughness={0.22}
@@ -326,33 +386,21 @@ function Water() {
   );
 }
 
-function World({ playerPosition, obstacles }) {
-  const centerX = Math.floor(
-    playerPosition.x / CHUNK_SIZE
-  );
+function World({ center }) {
+  const chunks = useMemo(() => {
+    const result = [];
 
-  const centerZ = Math.floor(
-    playerPosition.z / CHUNK_SIZE
-  );
-
-  const chunks = [];
-
-  for (
-    let x = -VIEW_DISTANCE;
-    x <= VIEW_DISTANCE;
-    x++
-  ) {
-    for (
-      let z = -VIEW_DISTANCE;
-      z <= VIEW_DISTANCE;
-      z++
-    ) {
-      chunks.push({
-        cx: centerX + x,
-        cz: centerZ + z
-      });
+    for (let x = -VIEW_DISTANCE; x <= VIEW_DISTANCE; x++) {
+      for (let z = -VIEW_DISTANCE; z <= VIEW_DISTANCE; z++) {
+        result.push({
+          cx: center.x + x,
+          cz: center.z + z
+        });
+      }
     }
-  }
+
+    return result;
+  }, [center]);
 
   return (
     <>
@@ -360,10 +408,12 @@ function World({ playerPosition, obstacles }) {
 
       <directionalLight
         position={[80, 100, 40]}
-        intensity={1.45}
+        intensity={1.35}
         castShadow
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
+        shadow-mapSize-width={512}
+        shadow-mapSize-height={512}
+        shadow-camera-near={1}
+        shadow-camera-far={180}
       />
 
       <Sky
@@ -373,32 +423,24 @@ function World({ playerPosition, obstacles }) {
 
       <fog
         attach="fog"
-        args={["#a9c2c7", 110, 330]}
+        args={["#a9c2c7", 220, 750]}
       />
 
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
         position={[0, -0.06, 0]}
-        receiveShadow
+        receiveShadow={false}
       >
         <planeGeometry args={[100000, 100000]} />
-        <meshStandardMaterial
-          color="#52734a"
-          roughness={1}
-        />
+        <meshStandardMaterial color="#52734a" roughness={1} />
       </mesh>
 
-      <Roads playerPosition={playerPosition} />
+      <Roads centerX={center.x} centerZ={center.z} />
 
       <Water />
 
       {chunks.map(({ cx, cz }) => (
-        <Chunk
-          key={`${cx}:${cz}`}
-          cx={cx}
-          cz={cz}
-          obstacles={obstacles}
-        />
+        <Chunk key={`${cx}:${cz}`} cx={cx} cz={cz} />
       ))}
     </>
   );
@@ -406,18 +448,18 @@ function World({ playerPosition, obstacles }) {
 
 function PlayerController({
   joystick,
-  obstacles,
-  onPositionChange,
+  onChunkChange,
   cameraRef
 }) {
   const keys = useRef({});
-  const velocity = useRef(
-    new THREE.Vector3(0, 0, 0)
-  );
-
+  const velocity = useRef(new THREE.Vector3());
   const position = useRef(
     new THREE.Vector3(0, PLAYER_HEIGHT, 8)
   );
+
+  const forward = useRef(new THREE.Vector3());
+  const right = useRef(new THREE.Vector3());
+  const input = useRef(new THREE.Vector3());
 
   useEffect(() => {
     const down = (event) => {
@@ -446,56 +488,62 @@ function PlayerController({
   useFrame(({ camera }, delta) => {
     const dt = Math.min(delta, 0.04);
 
-    const forward = new THREE.Vector3();
-    camera.getWorldDirection(forward);
-    forward.y = 0;
-    forward.normalize();
+    camera.getWorldDirection(forward.current);
+    forward.current.y = 0;
+    forward.current.normalize();
 
-    const right = new THREE.Vector3(
-      -forward.z,
+    right.current.set(
+      -forward.current.z,
       0,
-      forward.x
+      forward.current.x
     );
 
     let forwardInput = -joystick.y;
     let sideInput = joystick.x;
 
-    if (keys.current.KeyW || keys.current.ArrowUp)
+    if (keys.current.KeyW || keys.current.ArrowUp) {
       forwardInput += 1;
+    }
 
-    if (keys.current.KeyS || keys.current.ArrowDown)
+    if (keys.current.KeyS || keys.current.ArrowDown) {
       forwardInput -= 1;
+    }
 
-    if (keys.current.KeyD || keys.current.ArrowRight)
+    if (keys.current.KeyD || keys.current.ArrowRight) {
       sideInput += 1;
+    }
 
-    if (keys.current.KeyA || keys.current.ArrowLeft)
+    if (keys.current.KeyA || keys.current.ArrowLeft) {
       sideInput -= 1;
+    }
 
-    const input = new THREE.Vector3()
-      .addScaledVector(forward, forwardInput)
-      .addScaledVector(right, sideInput);
+    input.current.set(0, 0, 0);
+    input.current.addScaledVector(forward.current, forwardInput);
+    input.current.addScaledVector(right.current, sideInput);
 
-    if (input.lengthSq() > 1) input.normalize();
+    if (input.current.lengthSq() > 1) {
+      input.current.normalize();
+    }
 
-    const running = keys.current.ShiftLeft ||
-      keys.current.ShiftRight;
+    const running =
+      keys.current.ShiftLeft || keys.current.ShiftRight;
 
     const maxSpeed = running ? RUN_SPEED : WALK_SPEED;
 
-    const targetVelocity = input.multiplyScalar(maxSpeed);
+    const targetX = input.current.x * maxSpeed;
+    const targetZ = input.current.z * maxSpeed;
 
     velocity.current.x = THREE.MathUtils.damp(
       velocity.current.x,
-      targetVelocity.x,
-      input.lengthSq() > 0 ? ACCELERATION : FRICTION,
+      targetX,
+      input.current.lengthSq() > 0 ? ACCELERATION : FRICTION,
       dt
     );
 
     velocity.current.z = THREE.MathUtils.damp(
       velocity.current.z,
-      targetVelocity.z,
-      input.lengthSq() > 0 ? ACCELERATION : FRICTION,
+      targetZ,
+      input.current.lengthSq() > 0 ? ACCELERATION : FRICTION,
       dt
     );
 
@@ -504,30 +552,23 @@ function PlayerController({
     const nextX = current.x + velocity.current.x * dt;
     const nextZ = current.z + velocity.current.z * dt;
 
-    const collides = (x, z) =>
-      obstacles.current.some((obstacle) => {
-        const dx = x - obstacle.x;
-        const dz = z - obstacle.z;
-
-        return (
-          Math.hypot(dx, dz) <
-          obstacle.radius + PLAYER_RADIUS
-        );
-      });
-
     const insideWater = (x, z) =>
       distance(x, z, WATER.x, WATER.z) <
       WATER.radius - PLAYER_RADIUS;
 
-    if (!collides(nextX, current.z) &&
-        !insideWater(nextX, current.z)) {
+    if (
+      !collidesWithNearby(nextX, current.z) &&
+      !insideWater(nextX, current.z)
+    ) {
       current.x = nextX;
     } else {
       velocity.current.x = 0;
     }
 
-    if (!collides(current.x, nextZ) &&
-        !insideWater(current.x, nextZ)) {
+    if (
+      !collidesWithNearby(current.x, nextZ) &&
+      !insideWater(current.x, nextZ)
+    ) {
       current.z = nextZ;
     } else {
       velocity.current.z = 0;
@@ -538,10 +579,10 @@ function PlayerController({
     camera.position.copy(current);
     cameraRef.current = camera;
 
-    onPositionChange({
-      x: current.x,
-      z: current.z
-    });
+    const cx = Math.floor(current.x / CHUNK_SIZE);
+    const cz = Math.floor(current.z / CHUNK_SIZE);
+
+    onChunkChange(cx, cz);
   });
 
   return null;
@@ -557,9 +598,7 @@ function MobileCameraLook({ cameraRef }) {
       y: event.clientY
     };
 
-    event.currentTarget.setPointerCapture(
-      event.pointerId
-    );
+    event.currentTarget.setPointerCapture(event.pointerId);
   };
 
   const move = (event) => {
@@ -573,8 +612,8 @@ function MobileCameraLook({ cameraRef }) {
     touch.current.y = event.clientY;
 
     const camera = cameraRef.current;
-    camera.rotation.order = "YXZ";
 
+    camera.rotation.order = "YXZ";
     camera.rotation.y -= dx * LOOK_SENSITIVITY;
     camera.rotation.x -= dy * LOOK_SENSITIVITY;
 
@@ -603,10 +642,7 @@ function MobileCameraLook({ cameraRef }) {
 }
 
 function MobileJoystick({ onChange }) {
-  const [knob, setKnob] = useState({
-    x: 0,
-    y: 0
-  });
+  const [knob, setKnob] = useState({ x: 0, y: 0 });
 
   const baseRef = useRef(null);
   const pointer = useRef(null);
@@ -640,10 +676,7 @@ function MobileJoystick({ onChange }) {
   const down = (event) => {
     pointer.current = event.pointerId;
 
-    event.currentTarget.setPointerCapture(
-      event.pointerId
-    );
-
+    event.currentTarget.setPointerCapture(event.pointerId);
     update(event);
   };
 
@@ -683,9 +716,9 @@ function MobileJoystick({ onChange }) {
 }
 
 export default function Game() {
-  const [position, setPosition] = useState({
+  const [center, setCenter] = useState({
     x: 0,
-    z: 8
+    z: 0
   });
 
   const [joystick, setJoystick] = useState({
@@ -695,8 +728,8 @@ export default function Game() {
 
   const [mobile, setMobile] = useState(false);
 
-  const obstacles = useRef([]);
   const cameraRef = useRef(null);
+  const lastChunk = useRef({ x: 0, z: 0 });
 
   useEffect(() => {
     const check = () => {
@@ -715,6 +748,18 @@ export default function Game() {
     };
   }, []);
 
+  const handleChunkChange = (x, z) => {
+    if (
+      x === lastChunk.current.x &&
+      z === lastChunk.current.z
+    ) {
+      return;
+    }
+
+    lastChunk.current = { x, z };
+    setCenter({ x, z });
+  };
+
   return (
     <div className="game-screen">
       <Canvas
@@ -723,24 +768,20 @@ export default function Game() {
           position: [0, PLAYER_HEIGHT, 8],
           fov: 68,
           near: 0.1,
-          far: 450
+          far: 850
         }}
-        dpr={[1, 1.25]}
+        dpr={[1, 1.2]}
         gl={{
           antialias: false,
           powerPreference: "high-performance"
         }}
       >
-        <World
-          playerPosition={position}
-          obstacles={obstacles}
-        />
+        <World center={center} />
 
         <PlayerController
           joystick={joystick}
-          obstacles={obstacles}
           cameraRef={cameraRef}
-          onPositionChange={setPosition}
+          onChunkChange={handleChunkChange}
         />
 
         {!mobile && <PointerLockControls />}
